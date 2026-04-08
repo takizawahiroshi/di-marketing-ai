@@ -1,0 +1,25 @@
+# multi-agent-shogun 設定ファイル
+
+# 言語設定
+# ja: 日本語（戦国風日本語のみ、併記なし）
+# en: 英語（戦国風日本語 + 英訳併記）
+# その他の言語コード（es, zh, ko, fr, de 等）も対応
+language: ja
+
+# シェル設定
+# bash: bash用プロンプト（デフォルト）
+# zsh: zsh用プロンプト
+shell: bash
+
+# スキル設定
+skill:
+  # スキル保存先（スキル名に shogun- プレフィックスを付けて保存）
+  save_path: "~/.claude/skills/"
+
+  # ローカルスキル保存先（このプロジェクト専用）
+  local_path: "/mnt/c/Users/hiroshi_takizawa/pr-team-builder/multi-agent-shogun/skills/"
+
+# ログ設定
+logging:
+  level: info  # debug | info | warn | error
+  path: "/mnt/c/Users/hiroshi_takizawa/pr-team-builder/multi-agent-shogun/logs/"

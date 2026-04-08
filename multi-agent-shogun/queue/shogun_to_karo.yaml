@@ -1,0 +1,185 @@
+---
+# 将軍 → 家老 指示書
+# 発令: 2026-03-25
+# 命令ID: cmd_pr_team_builder_renovation
+
+command_id: cmd_pr_team_builder_renovation
+priority: critical
+issued_by: shogun
+issued_at: "2026-03-25T15:50:00"
+
+mission: |
+  PR Virtual Team Builder の大規模改修。
+  ファイル: C:/Users/hiroshi_takizawa/pr-team-builder/pr-team-builder.jsx (618行)
+  現状の全機能を維持しつつ、11の新機能を追加する。
+  デザインはApple製品のようなクラス感・直感性を目指す。
+
+project_path: "C:/Users/hiroshi_takizawa/pr-team-builder"
+target_file: "pr-team-builder.jsx"
+
+requirements:
+  - id: R01
+    title: "ZIPダウンロード"
+    priority: P1
+    difficulty: low
+    desc: |
+      JSZip (CDN: https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js) を使用。
+      全ファイルをディレクトリ構造ごと .zip に出力。
+      files[].path をそのままディレクトリパスとして格納。
+      現在の .txt ダウンロードボタンをZIPボタンに変更（.txtも残す）。
+      DLファイル名: {company}-agents.zip
+
+  - id: R02
+    title: "既存Skillsファイルのアップロード引き継ぎ"
+    priority: P1
+    difficulty: medium
+    desc: |
+      フォームの下にドラッグ&ドロップゾーンを追加（Step 01と02の間）。
+      .md/.txt ファイルを受け付け、FileReader APIで読み込む。
+      読み込んだ内容を buildPrompt() の末尾「■ 参照スキル」セクションに追記。
+      複数ファイル対応。アップロード済みファイル一覧をバッジで表示。削除可能。
+
+  - id: R03
+    title: "Markdownプレビューモード"
+    priority: P1
+    difficulty: low
+    desc: |
+      ファイルビューアーのヘッダーに RAW / Preview トグルタブを追加。
+      marked.js (CDN: https://cdn.jsdelivr.net/npm/marked/marked.min.js) でHTMLにレンダリング。
+      RAWはモノスペース表示（現状維持）。
+      PreviewはdangerouslySetInnerHTMLで表示。基本的なMarkdownスタイリングをインラインCSSで適用。
+
+  - id: R04
+    title: "個別ファイル再生成"
+    priority: P1
+    difficulty: medium
+    desc: |
+      ファイルツリーの各行にホバー時に「↺」再生成ボタンを表示。
+      クリックすると、そのファイルのpath/type/部門名をコンテキストとしてAPIに再送信。
+      再生成中はスピナーを表示。完了後は該当ファイルのcontentのみ差し替え。
+
+  - id: R05
+    title: "テンプレートプリセット"
+    priority: P1
+    difficulty: low
+    desc: |
+      フォーム上部に業種別プリセットボタンを追加（横スクロール可能なチップ列）。
+      プリセット定義:
+        - スタートアップPR: company="テック系スタートアップ", role="PRマネージャー", business="SaaSプロダクト開発", 部門=[strategy×2, media×3, content×3, digital×2]
+        - 大企業IR: company="上場企業", role="IR・広報部長", business="製造業・BtoB", 部門=[strategy×3, media×4, analytics×3]
+        - 採用広報特化: company="成長中ベンチャー", role="採用広報担当", business="ITサービス", 部門=[recruit×4, content×3, digital×3, brand×2]
+        - D2Cブランド: company="D2Cブランド", role="ブランドマネージャー", business="消費財・EC", 部門=[brand×4, content×4, digital×3, media×2]
+      選択するとinfoとdsの両方を一括セット。
+
+  - id: R06
+    title: "差分ビュー（再生成前後の比較）"
+    priority: P2
+    difficulty: medium
+    desc: |
+      個別ファイル再生成（R04）の完了後に「差分を見る」ボタンを表示。
+      左右分割レイアウト: 左=旧バージョン（削除行は赤背景）、右=新バージョン（追加行は緑背景）。
+      行単位のdiff表示。外部ライブラリ不要のシンプルなdiffアルゴリズム実装。
+
+  - id: R07
+    title: "エージェント名インライン編集"
+    priority: P2
+    difficulty: low
+    desc: |
+      ファイルツリーのエージェントファイル名をダブルクリックすると編集モードに切り替え。
+      input要素に切り替わり、Enterで確定/Escでキャンセル。
+      ファイル名変更時はfiles配列のpathを更新。
+
+  - id: R08
+    title: "多言語対応（英語出力モード）"
+    priority: P2
+    difficulty: low
+    desc: |
+      ヘッダーに 🇯🇵 / 🇺🇸 トグルボタンを追加。
+      言語状態: useState("ja") → "ja" | "en"
+      "en"の場合: buildPrompt()に「すべての出力を英語で行うこと」の指示を追加。
+      UIラベル・ボタン・プレースホルダーも英語化。
+
+  - id: R09
+    title: "Apple風ダッシュボード改善"
+    priority: P1
+    difficulty: high
+    desc: |
+      全体的なUI/UXをApple製品レベルのクラス感に引き上げる。
+      改善点:
+      1. ヘッダー: すりガラス効果 (backdrop-filter: blur(20px)), ロゴにグラデーション
+      2. ステップ表示: 01→02→03→Generate の進捗インジケーターをヘッダー下に追加
+      3. カード: より深い影, hover時に微細に浮き上がる(translateY(-2px)), border-radius大きめ
+      4. 生成ボタン: グラデーション背景(#059669→#0d9488), 押下時にscale(0.98)
+      5. 生成完了画面: 「✓ 生成完了」の大きなアニメーション
+      6. カラーパレット: ホワイト基調 + ディープグリーン + 精緻なグレー階調
+      7. アニメーション: すべての遷移にcubic-bezier(0.4, 0, 0.2, 1)
+      デザイン参考: Apple.com, Stripe Dashboard, Linear.app
+
+  - id: R10
+    title: "Slack通知"
+    priority: P3
+    difficulty: medium
+    desc: |
+      設定セクションにSlack Webhook URLの入力欄を追加（オプション・折り畳み可）。
+      生成完了時にWebhookへPOST (no-corsモード):
+        text: "✅ {company}の仮想チーム生成完了\n📁 {total_files}ファイル | 👥 {agents}名 | 🏢 {departments}部門"
+      失敗してもサイレントに処理（メイン機能に影響しない）。
+
+  - id: R11
+    title: "Google Drive連携UI"
+    priority: P3
+    difficulty: high
+    desc: |
+      ダウンロードボタンの横に「Google Driveにアップロード」ボタンを追加。
+      クリック時: OAuth設定モーダルを表示（設定案内 + Client ID入力欄）。
+      現時点では認証フローの雛形UI実装のみ（実際のOAuth認証は将来実装として）。
+      gapi.client経由のファイルアップロード関数の雛形（コメント付き）を実装。
+
+parallel_strategy:
+  groups:
+    - id: G1
+      ashigaru: 1
+      tasks: [R01, R08]
+      desc: "ZIPダウンロード + 多言語対応"
+
+    - id: G2
+      ashigaru: 2
+      tasks: [R05, R09]
+      desc: "テンプレートプリセット + Apple風ダッシュボード"
+
+    - id: G3
+      ashigaru: 3
+      tasks: [R02]
+      desc: "既存Skillsアップロード（新規セクション）"
+
+    - id: G4
+      ashigaru: 4
+      tasks: [R03, R07]
+      desc: "Markdownプレビュー + エージェント名インライン編集"
+
+    - id: G5
+      ashigaru: 5
+      tasks: [R04, R06]
+      desc: "個別再生成 + 差分ビュー"
+
+    - id: G6
+      ashigaru: 6
+      tasks: [R10, R11]
+      desc: "Slack通知 + Google Drive UI"
+
+constraints:
+  - "既存の全機能は削除・縮小しないこと（現618行の機能をすべて維持）"
+  - "<form>タグ禁止。React内はすべてイベントハンドラで制御"
+  - "localStorageとsessionStorage禁止。状態はuseStateのみ"
+  - "APIキーはハードコードしない。既存の実装パターンを踏襲"
+  - "外部ライブラリはCDN経由（package.jsonなし）"
+  - "既存のForté.AIデザインシステム（emerald / white / Inter）を基盤として拡張"
+  - "最終出力は単一の .jsx ファイル"
+
+completion_criteria:
+  - "全11機能が実装されていること"
+  - "既存機能が正常に動作すること"
+  - "dashboard.mdに進捗と結果を報告すること"
+  - "Next.skills.mdを最終更新すること"
+
+report_to: shogun

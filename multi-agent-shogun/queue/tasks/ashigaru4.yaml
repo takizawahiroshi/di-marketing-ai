@@ -1,0 +1,8 @@
+# 足軽4専用タスクファイル
+task:
+  task_id: null
+  parent_cmd: null
+  description: null
+  target_path: null
+  status: idle
+  timestamp: ""
