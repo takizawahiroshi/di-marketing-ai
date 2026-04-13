@@ -1,0 +1,22 @@
+# 環境変数・シークレット
+backend/.env
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# テスト成果物
+test_frontend.py
+C:/tmp/di-screenshots/
+
+# OS
+.DS_Store
+Thumbs.db
