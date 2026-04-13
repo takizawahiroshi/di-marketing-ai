@@ -1,0 +1,3099 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DI AI PLATFORM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" crossorigin="anonymous">
+<style>
+/* file:// フォールバック */
+:root{
+  --sans: 'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic UI','Meiryo',sans-serif;
+  --mono: 'IBM Plex Mono','Consolas','Courier New',monospace;
+}
+
+/* HARNESS LIFECYCLE HOOKS */
+#hook-panel{flex-shrink:0;border-top:1px solid var(--border);background:var(--surface);overflow:hidden;transition:max-height .25s ease;}
+#hook-panel.open{max-height:300px;overflow-y:auto;}
+#hook-panel.closed{max-height:0;}
+.hook-bar{display:flex;align-items:center;gap:8px;padding:7px 18px;cursor:pointer;border-bottom:1px solid var(--border);background:var(--bg);}
+.hook-bar:hover{background:var(--panel);}
+.hook-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;font-family:var(--mono);}
+.hook-score{font-size:12px;font-weight:700;padding:2px 10px;border-radius:100px;}
+.hook-score.good{background:rgba(95,168,130,.12);color:var(--green);}
+.hook-score.warn{background:var(--amber-dim);color:var(--amber);}
+.hook-score.bad{background:rgba(192,85,74,.12);color:var(--red);}
+.hook-badge{font-size:10px;padding:2px 8px;border-radius:100px;background:var(--blue-dim);color:var(--blue);font-family:var(--mono);}
+.hook-content{padding:10px 18px 12px;}
+.hook-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border);}
+.hook-item:last-child{border-bottom:none;}
+.hook-icon{font-size:13px;flex-shrink:0;width:18px;text-align:center;}
+.hook-text{font-size:12px;color:var(--text);line-height:1.55;flex:1;}
+.hook-text strong{color:var(--text);font-weight:600;}
+.hook-suggest{font-size:11px;color:var(--blue);margin-top:2px;cursor:pointer;display:inline-block;}
+.hook-suggest:hover{text-decoration:underline;}
+.hook-spin{width:12px;height:12px;border:2px solid var(--dim);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+
+/* HARNESS CHECKLIST (終了条件の外部化) */
+#checklist-panel{flex-shrink:0;border-top:1px solid var(--border);background:var(--bg);overflow:hidden;transition:max-height .2s ease;}
+#checklist-panel.open{max-height:280px;}
+#checklist-panel.closed{max-height:0;}
+.cl-bar{display:flex;align-items:center;gap:8px;padding:7px 18px;cursor:pointer;background:#fff;border-bottom:0.5px solid var(--border);}
+.cl-bar:hover{background:var(--panel);}
+.cl-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;font-family:var(--mono);}
+.cl-progress{font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;background:var(--green-dim);color:var(--green);}
+.cl-content{padding:8px 18px 10px;overflow-y:auto;max-height:220px;}
+.cl-item{display:flex;align-items:flex-start;gap:9px;padding:6px 0;border-bottom:0.5px solid var(--border);}
+.cl-item:last-child{border-bottom:none;}
+.cl-cb{width:15px;height:15px;border:1px solid var(--border2);border-radius:2px;cursor:pointer;flex-shrink:0;margin-top:1px;appearance:none;-webkit-appearance:none;background:var(--bg);transition:all .12s;}
+.cl-cb:checked{background:var(--gold);border-color:var(--gold);background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-size:10px;}
+.cl-text{font-size:12px;color:var(--text);line-height:1.5;flex:1;}
+.cl-text.done{color:var(--muted);text-decoration:line-through;}
+
+
+/* Distinctive Visual Details */
+#hdr::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold) 0%,transparent 60%);pointer-events:none;}
+#hdr{position:relative;}
+
+/* ao-num ゴールドスタイル */
+.ao-num{font-family:var(--mono);font-size:11px;color:var(--gold);font-weight:500;letter-spacing:.04em;min-width:28px;}
+
+/* plan-step アクセント */
+.plan-block{background:var(--surface);border:1px solid var(--border);padding:12px 14px;margin-bottom:10px;border-radius:3px;border-left:2px solid var(--gold);}
+
+/* final output header */
+.fo-header{background:var(--gold);color:#0A0A0E;padding:8px 14px;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;}
+
+/* history items */
+.hist-item{padding:8px 14px;cursor:pointer;border-left:2px solid transparent;transition:all .12s;}
+.hist-item:hover{background:var(--gold-dim);border-left-color:var(--gold);}
+.hist-item.active{background:var(--gold-dim);border-left-color:var(--gold);}
+.hist-title{font-size:11px;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hist-meta{font-family:var(--mono);font-size:9px;color:var(--muted);}
+
+/* ctx panel */
+.ctx-dot.set{background:var(--gold);}
+.ctx-val{font-size:10px;color:var(--gold);font-family:var(--mono);}
+.ctx-add-btn{width:100%;margin-top:8px;padding:5px;background:transparent;border:1px dashed var(--border2);color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .15s;letter-spacing:.04em;}
+.ctx-add-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+/* タスクゴール - serif */
+.task-goal{font-size:15px;font-weight:400;color:var(--text);margin-bottom:6px;line-height:1.4;font-family:var(--serif);}
+
+/* hdr-btn */
+.hdr-btn{padding:5px 12px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:10px;font-family:var(--mono);cursor:pointer;transition:all .15s;border-radius:3px;letter-spacing:.06em;text-transform:uppercase;}
+.hdr-btn:hover{color:var(--gold-bright);border-color:var(--gold);background:var(--gold-dim);}
+
+/* APIステータスドット */
+.status-dot.ok{background:var(--green);box-shadow:0 0 4px var(--green);}
+.status-dot.err{background:var(--red);}
+
+/* exec-empty (orch) */
+.exec-empty-icon{color:var(--gold);opacity:.4;}
+
+/* export button */
+.export-btn{font-size:11px;padding:3px 10px;background:transparent;border:1px solid var(--border2);color:var(--muted);cursor:pointer;font-family:var(--mono);letter-spacing:.04em;}
+.export-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+/* plan step icon */
+.plan-step-icon{font-size:14px;}
+.plan-step-name{font-size:12px;font-weight:500;color:var(--text);}
+.plan-step-desc{font-size:11px;color:var(--muted);}
+
+/* starter buttons */
+.starter-btn{font-size:11px;padding:5px 9px;background:var(--bg);border:1px solid var(--border);color:var(--muted);text-align:left;cursor:pointer;font-family:var(--sans);transition:all .12s;line-height:1.4;border-radius:3px;}
+.starter-btn:hover{border-color:var(--gold);color:var(--gold-bright);background:var(--gold-dim);}
+
+/* ファネルウィザードタイトル */
+#funnel-wizard h2, #funnel-wizard .funnel-title{font-family:var(--serif)!important;}
+
+/* 保存済みチップ */
+.fsaved-chip{color:var(--muted);}
+.fsaved-chip:hover{border-color:var(--gold);color:var(--gold-bright);}
+
+/* スクロールバー（ダーク） */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);}
+
+/* input placeholder */
+::placeholder{color:rgba(122,118,128,.7);}
+input, textarea, select{background:var(--bg);color:var(--text);border-color:var(--border2);}
+input:focus, textarea:focus{border-color:var(--gold)!important;outline:none;}
+
+/* ファネルセクション label */
+.fsnum{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;font-family:var(--mono);}
+
+</style>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  /* ライトテーマ */
+  --bg:#F4F6FA;--surface:#FFFFFF;--panel:#EDF0F6;
+  --border:rgba(0,0,0,.10);--border2:rgba(0,0,0,.18);
+  --text:#111318;--muted:#5C6474;--dim:#BCC0CC;
+  --green:#0A8F5C;--green-dim:rgba(10,143,92,.08);--green-lt:rgba(10,143,92,.18);
+  --amber:#C27B00;--amber-dim:rgba(194,123,0,.09);
+  --red:#D93025;--blue:#1A5FD9;--blue-dim:rgba(26,95,217,.08);
+  --blue-mid:rgba(26,95,217,.15);
+  --teal:#0A6E6E;--teal-lt:#B2DFDB;--teal-xlt:#E0F2F1;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.10),0 2px 4px rgba(0,0,0,.05);
+  --mono:'IBM Plex Mono',monospace;--sans:'Noto Sans JP',sans-serif;--r:6px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.65;overflow:hidden;-webkit-font-smoothing:antialiased;}
+
+/* HEADER */
+#hdr{height:52px;background:var(--surface);border-bottom:1px solid var(--border2);display:flex;align-items:center;padding:0 20px;gap:14px;flex-shrink:0;}
+.hdr-brand{display:flex;align-items:center;gap:8px;}
+.hdr-mark{width:30px;height:30px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0A0A0E;font-family:var(--mono);letter-spacing:.04em;clip-path:polygon(0 0,100% 0,100% 80%,80% 100%,0 100%);}
+.hdr-name{font-family:var(--serif);font-size:15px;color:var(--text);font-weight:400;letter-spacing:.06em;font-style:italic;}
+.mode-tabs{display:flex;gap:2px;margin-left:8px;}
+.mode-tab{padding:5px 14px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .15s;border-radius:3px;font-weight:400;letter-spacing:.04em;}
+.mode-tab.active{background:var(--gold);border-color:var(--gold);color:#0A0A0E;box-shadow:var(--shadow-gold);font-weight:600;}
+.mode-tab:hover:not(.active){border-color:var(--gold);color:var(--gold-bright);}
+.hdr-space{flex:1;}
+.status-dot{width:6px;height:6px;border-radius:50%;}
+.status-dot.ok{background:var(--green);box-shadow:0 0 5px var(--green);}
+.status-dot.err{background:var(--red);}
+.hdr-status{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;}
+.hdr-btn{padding:5px 13px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:12px;font-family:var(--sans);cursor:pointer;transition:all .15s;border-radius:5px;}
+.hdr-btn:hover{color:var(--text);background:var(--panel);}
+
+/* LAYOUT */
+#app{display:flex;height:calc(100vh - 52px);}
+
+/* LEFT PANEL */
+#left{width:224px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.lp-section{padding:11px 16px 8px;font-family:var(--mono);font-size:9px;font-weight:400;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);}
+.ln-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-left:2px solid transparent;transition:all .12s;font-size:12px;color:var(--muted);background:transparent;border-top:none;border-right:none;border-bottom:none;font-family:inherit;text-align:left;width:100%;}
+.ln-item:hover{background:rgba(200,151,63,.05);border-left-color:var(--gold-dim);color:var(--text);}
+.ln-item.active{background:var(--gold-dim);border-left-color:var(--gold);color:var(--gold-bright);font-weight:500;}
+.ln-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0;}
+.ln-sub{display:none;background:rgba(200,151,63,.04);border-left:1px solid var(--border);}
+.ln-sub.open{display:block;}
+.ln-sub-item{padding:7px 14px 7px 36px !important;font-size:12px !important;}
+.ln-arrow{margin-left:auto;font-size:13px;color:var(--dim);transition:transform .2s;display:inline-block;flex-shrink:0;}
+.ln-arrow.open{transform:rotate(90deg);}
+.ln-cat-wrap{display:flex;flex-direction:column;}
+#history-list{flex:1;overflow-y:auto;padding:4px 0;}
+.hist-item{padding:8px 14px;cursor:pointer;border-left:2px solid transparent;transition:all .12s;}
+.hist-item:hover{background:var(--bg);border-left-color:var(--dim);}
+.hist-item.active{background:var(--blue-dim);border-left-color:var(--blue);}
+.hist-title{font-size:11px;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hist-meta{font-family:var(--mono);font-size:9px;color:var(--muted);}
+.hist-empty{padding:14px;font-size:11px;color:var(--muted);line-height:1.6;}
+.ctx-panel{border-top:1px solid var(--border);padding:10px 14px 12px;flex-shrink:0;}
+.ctx-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.ctx-row{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid var(--border);}
+.ctx-row:last-of-type{border-bottom:none;}
+.ctx-dot{width:5px;height:5px;border-radius:50%;background:var(--dim);flex-shrink:0;}
+.ctx-dot.set{background:var(--green);}
+.ctx-key{font-family:var(--mono);font-size:10px;color:var(--muted);flex:1;}
+.ctx-val{font-size:10px;color:var(--green);font-family:var(--mono);}
+.ctx-add-btn{width:100%;margin-top:8px;padding:5px;background:transparent;border:1px dashed var(--dim);color:var(--muted);font-size:11px;font-family:var(--sans);cursor:pointer;transition:all .15s;}
+.ctx-add-btn:hover{border-color:var(--blue);color:var(--blue);}
+
+/* MAIN */
+#main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
+
+/* AGENTS VIEW */
+#view-agents{flex:1;overflow-y:auto;padding:24px 28px;}
+.agents-hero{margin-bottom:24px;}
+.agents-hero h1{font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.agents-hero p{font-size:12px;color:var(--muted);}
+.cat-section{margin-bottom:28px;}
+.cat-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.cat-bar{width:3px;height:16px;border-radius:2px;}
+.cat-title{font-size:10px;font-weight:400;color:var(--muted);font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;}
+.cat-count{font-family:var(--mono);font-size:9px;color:var(--muted);}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;}
+.acard{background:var(--surface);border:1px solid var(--border);cursor:pointer;transition:all .18s;padding:14px;border-radius:4px;position:relative;overflow:hidden;}
+.acard:hover{border-color:var(--gold);background:var(--panel);box-shadow:var(--shadow-gold);transform:translateY(-1px);}
+.acard-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.acard-icon{width:32px;height:32px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.acard-name{font-size:13px;font-weight:500;color:var(--text);letter-spacing:.01em;}
+.acard-tag{font-family:var(--mono);font-size:9px;padding:1px 6px;letter-spacing:.04em;}
+.acard-desc{font-size:12px;color:var(--muted);line-height:1.65;margin-top:2px;}
+.acard-starters{margin-top:10px;display:flex;flex-direction:column;gap:4px;}
+.starter-btn{font-size:11px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);color:var(--muted);text-align:left;cursor:pointer;font-family:var(--sans);transition:all .12s;line-height:1.4;border-radius:5px;}
+.starter-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-mid);}
+
+/* CHAT VIEW */
+#view-chat{flex:1;min-height:0;display:flex;flex-direction:column;}#msgs{flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;justify-content:flex-end;gap:14px;background:var(--bg);}
+.chat-hdr{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.chat-back{padding:5px 12px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;border-radius:2px;transition:all .15s;letter-spacing:.04em;}
+.chat-back:hover{color:var(--gold-bright);border-color:var(--gold);background:var(--gold-dim);}
+.chat-agent-icon{width:28px;height:28px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.chat-agent-name{font-size:14px;font-weight:400;color:var(--text);font-family:var(--serif);letter-spacing:.02em;}
+.chat-agent-cat{font-size:11px;color:var(--muted);margin-top:1px;}
+
+.msg-user{display:flex;justify-content:flex-end;}
+.msg-ai{display:flex;justify-content:flex-start;}
+.msg-bubble{max-width:74%;padding:12px 16px;font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;}
+.msg-user .msg-bubble{background:var(--gold);border:none;color:#0A0A0E;border-radius:2px 12px 12px 12px;box-shadow:var(--shadow-gold);}
+.msg-ai .msg-bubble{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:12px 2px 12px 12px;}
+.msg-thinking{color:var(--muted);font-family:var(--mono);font-size:11px;display:flex;align-items:center;gap:8px;}
+.dots span{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--amber);margin:0 2px;animation:dot .9s infinite;}
+.dots span:nth-child(2){animation-delay:.15s;}.dots span:nth-child(3){animation-delay:.3s;}
+@keyframes dot{0%,80%,100%{opacity:.2;}40%{opacity:1;}}
+.chat-input-area{padding:12px 20px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:68px;}
+.chat-row{display:flex;gap:8px;}
+#ci{flex:1;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-size:13px;font-family:var(--sans);padding:10px 14px;resize:none;outline:none;min-height:42px;max-height:120px;line-height:1.65;transition:all .15s;border-radius:3px;}
+#ci:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(200,151,63,.15);}
+#ci::placeholder{color:var(--muted);}
+#send-btn{padding:10px 22px;background:var(--gold);color:#0A0A0E;border:none;font-size:12px;font-family:var(--mono);font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;border-radius:3px;box-shadow:var(--shadow-gold);letter-spacing:.06em;text-transform:uppercase;}
+#send-btn:hover{background:var(--gold-bright);box-shadow:0 4px 16px rgba(200,151,63,.4);transform:translateY(-1px);}
+#send-btn:disabled{background:var(--dim);color:var(--muted);cursor:not-allowed;box-shadow:none;transform:none;}
+
+/* ORCHESTRATE VIEW */
+#view-orch{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#input-zone{border-bottom:1px solid var(--border);background:var(--surface);padding:18px 22px 14px;flex-shrink:0;}
+.iz-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.iz-row{display:flex;gap:8px;align-items:flex-end;}
+#task-input{flex:1;background:var(--panel);border:1px solid var(--border2);color:var(--text);font-size:14px;font-family:var(--sans);padding:12px 16px;resize:none;outline:none;min-height:52px;max-height:130px;line-height:1.65;transition:all .15s;border-radius:4px;}
+#task-input:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(200,151,63,.15);}
+#task-input::placeholder{color:var(--muted);}
+#run-btn{padding:12px 24px;background:var(--gold);color:#08080A;border:none;font-size:13px;font-family:var(--mono);font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;border-radius:4px;box-shadow:0 2px 14px rgba(200,151,63,.4);letter-spacing:.04em;min-width:90px;}
+#run-btn:hover{background:var(--gold-bright);box-shadow:0 4px 16px rgba(200,151,63,.4);transform:translateY(-1px);}
+#run-btn:disabled{background:var(--dim);cursor:not-allowed;}
+.iz-hints{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+.hint-chip{font-size:11px;padding:5px 12px;background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--muted);cursor:pointer;font-family:var(--sans);transition:all .15s;border-radius:100px;letter-spacing:.01em;}
+.hint-chip:hover{border-color:var(--gold);color:var(--gold-bright);background:var(--gold-dim);}
+#exec-area{flex:1;overflow-y:auto;padding:18px 22px;}
+.exec-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;color:var(--muted);}
+.exec-empty-icon{font-family:var(--mono);font-size:28px;color:var(--dim);}
+.exec-empty-text{font-size:12px;text-align:center;line-height:1.7;max-width:340px;}
+.task-header{margin-bottom:14px;}
+.task-goal{font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.4;}
+.task-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.task-status-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;font-family:var(--mono);font-size:10px;}
+.task-status-badge.planning{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,166,35,.2);}
+.task-status-badge.running{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(74,158,255,.2);}
+.task-status-badge.done{background:var(--green-dim);color:var(--green);border:1px solid var(--green-lt);}
+.task-status-badge.error{background:rgba(255,77,77,.1);color:var(--red);border:1px solid rgba(255,77,77,.2);}
+.plan-block{background:var(--surface);border:1px solid var(--border);padding:12px 16px;margin-bottom:12px;border-radius:8px;box-shadow:var(--shadow-sm);}
+.plan-title{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.plan-steps{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.plan-step{display:flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid var(--border);background:var(--surface);font-size:11px;}
+.plan-step.running{border-color:var(--blue);background:var(--blue-dim);}
+.plan-step.done{border-color:var(--green);background:var(--green-dim);}
+.plan-arrow{color:var(--dim);font-size:13px;}
+.plan-reason{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.55;}
+.agent-output{margin-bottom:8px;border:1px solid var(--border);border-radius:3px;overflow:hidden;}
+.ao-header{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--border);}
+.ao-num{font-family:var(--mono);font-size:9px;color:var(--muted);}
+.ao-icon{font-size:13px;}
+.ao-name{font-size:11px;font-weight:700;color:var(--text);}
+.ao-status{margin-left:auto;font-family:var(--mono);font-size:10px;}
+.ao-status.running{color:var(--amber);}
+.ao-status.done{color:var(--green);}
+.ao-body{padding:14px 16px;font-size:13px;line-height:1.8;color:var(--text);white-space:pre-wrap;word-break:break-word;background:var(--surface);}
+.final-output{margin-top:12px;border:1px solid var(--gold);background:rgba(200,151,63,.05);border-radius:3px;overflow:hidden;}
+.fo-header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(0,201,122,.15);}
+.fo-label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--green);text-transform:uppercase;}
+.fo-body{padding:16px;font-size:13px;line-height:1.85;color:var(--text);white-space:pre-wrap;word-break:break-word;}
+
+/* MODALS */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:400;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(4px);}
+.overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--surface);border:1px solid var(--border2);width:520px;max-width:95vw;max-height:88vh;overflow-y:auto;border-radius:4px;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.modal-head{background:var(--panel);border-bottom:1px solid var(--border2);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:13px;font-weight:400;letter-spacing:.06em;color:var(--text);font-family:var(--mono);text-transform:uppercase;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:16px 18px;}
+.m-block{margin-bottom:16px;}
+.m-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.m-hint{font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.55;}
+.m-ta{width:100%;min-height:72px;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-size:12px;font-family:var(--sans);padding:8px 10px;resize:vertical;outline:none;line-height:1.6;transition:border-color .15s;}
+.m-ta:focus{border-color:var(--blue);}
+.m-inp{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-size:12px;font-family:var(--mono);padding:8px 10px;outline:none;transition:border-color .15s;margin-bottom:12px;}
+.m-inp:focus{border-color:var(--blue);}
+.m-hint-box{font-size:11px;color:var(--muted);background:var(--bg);border-left:2px solid var(--blue);padding:7px 10px;margin-bottom:12px;line-height:1.55;}
+.modal-foot{padding:10px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.btn-p{padding:8px 20px;background:var(--gold);color:#0A0A0E;border:none;font-size:12px;font-family:var(--mono);font-weight:500;cursor:pointer;border-radius:3px;box-shadow:var(--shadow-gold);letter-spacing:.04em;}
+.btn-p:hover{background:var(--gold-bright);}
+.btn-s{padding:8px 16px;background:transparent;color:var(--muted);border:1px solid var(--border2);font-size:12px;font-family:var(--mono);cursor:pointer;border-radius:3px;letter-spacing:.04em;}
+.btn-s:hover{color:var(--text);}
+#manifest-output{padding:14px 16px;font-family:var(--mono);font-size:11px;color:var(--green);line-height:1.7;overflow-y:auto;max-height:calc(80vh - 160px);white-space:pre-wrap;word-break:break-all;}
+
+/* MOBILE */
+@media (max-width:768px){
+  #hdr{padding:0 10px;gap:6px;}
+  .hdr-name{display:none;}
+  .hdr-status{display:none;}
+  .hdr-btn{padding:3px 7px;font-size:10px;}
+  #left{display:none;}
+  #left.open{display:flex;position:fixed;left:0;top:46px;height:calc(100vh - 46px);width:230px;z-index:200;box-shadow:4px 0 20px rgba(0,0,0,.5);}
+  #menu-btn{display:flex !important;}
+  #view-agents{padding:14px 14px;}
+  .cards-grid{grid-template-columns:1fr;}
+  #input-zone{padding:10px 12px;}
+  #exec-area{padding:12px 12px;}
+}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--dim);}
+
+/* TARGET FUNNEL */
+.ftag{font-size:11px;padding:4px 11px;border:1px solid var(--border2);background:var(--panel);color:var(--muted);cursor:pointer;border-radius:2px;font-family:var(--mono);transition:all .12s;letter-spacing:.02em;}
+.ftag.on{background:var(--gold);color:#0A0A0E;border-color:var(--gold);box-shadow:var(--shadow-gold);}
+.frow{display:flex;align-items:stretch;margin-bottom:4px;cursor:pointer;border-radius:3px;overflow:hidden;border:1px solid var(--border);transition:all .15s;background:var(--surface);}
+.frow:hover{border-color:var(--border2);}
+.frow.on{border-color:var(--gold);background:var(--gold-dim);}
+.frow-l{display:flex;align-items:center;gap:7px;padding:8px 11px;flex:1;}
+.frow-p{font-size:10px;color:var(--muted);padding:8px 10px;border-left:0.5px solid var(--border);min-width:62px;text-align:right;display:flex;align-items:center;justify-content:flex-end;}
+.frow.on .frow-p{color:var(--blue);}
+.fchg{padding:10px 13px;border:1px solid var(--border);cursor:pointer;border-radius:3px;transition:all .15s;background:var(--surface);}
+.fchg:hover{border-color:var(--border2);}
+.fchg.on{background:var(--gold-dim);border-color:var(--gold);}.fchg.on p:first-child{color:var(--gold-bright)!important;}
+.frbn{font-size:11px;padding:4px 9px;border:0.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;border-radius:4px;font-family:var(--sans);transition:all .12s;}
+.frbn.on{background:var(--blue-dim);color:var(--blue);border-color:var(--blue);}
+.ftab-btn{flex:1;padding:7px 6px;font-size:10px;background:transparent;border:none;color:var(--muted);cursor:pointer;font-family:var(--mono);border-bottom:1px solid transparent;transition:all .12s;letter-spacing:.06em;text-transform:uppercase;}
+.ftab-btn.on{color:var(--gold-bright);border-bottom-color:var(--gold);font-weight:500;}
+.fb2{font-size:9px;padding:2px 6px;border-radius:100px;background:var(--panel);color:var(--muted);border:0.5px solid var(--border);}
+.fb1{font-size:9px;padding:2px 6px;border-radius:100px;background:var(--amber-dim);color:var(--amber);}
+.fseg{display:flex;align-items:center;padding:4px 0;border-bottom:0.5px solid var(--border);}
+.fseg:last-child{border-bottom:none;}
+.fins-card{padding:9px 11px;background:var(--panel);border-radius:5px;border:0.5px solid var(--border);margin-bottom:6px;}
+.fcomp-card{padding:9px 11px;border-radius:5px;border:0.5px solid var(--border);margin-bottom:6px;}
+.fcomp-card.hi{border-color:var(--amber);background:var(--amber-dim);}
+.fsaved-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;border:0.5px solid var(--border);background:var(--panel);font-size:11px;cursor:pointer;margin:0 4px 4px 0;color:var(--muted);}
+.fsaved-chip:hover{border-color:var(--blue);color:var(--blue);}
+.fsnum{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0;}
+.fvl{position:absolute;left:12px;top:26px;bottom:0;width:1px;background:var(--border);}
+@media(max-width:768px){#funnel-panel{display:none;}#view-agents > div > div{grid-template-columns:1fr!important;}}
+
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-mark">DI</div>
+    <span class="hdr-name">HARNESS</span>
+  </div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tab-orch" onclick="setMode('orch')">▶ ORCHESTRATE</button>
+    <button class="mode-tab" id="tab-agents" onclick="setMode('agents')">⬛ AGENTS</button>
+  </div>
+  <div class="hdr-space"></div>
+  <div class="hdr-status">
+    <span class="status-dot err" id="api-dot"></span>
+    <span id="api-txt" style="color:var(--muted)">no api key</span>
+  </div>
+  <button class="hdr-btn" onclick="openModal('ctx-modal')">＋ データ登録</button>
+  
+  <button class="hdr-btn" onclick="openModal('api-modal')">api key</button>
+  <button id="menu-btn" onclick="toggleMenu()" style="display:none;padding:4px 10px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:14px;cursor:pointer;">☰</button>
+</div>
+
+<div id="fs-toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:#1A1D23;color:#fff;font-size:13px;padding:10px 22px;border-radius:100px;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999;opacity:0;transition:all .3s;pointer-events:none;font-family:var(--sans);"></div>
+
+<div id="app">
+  <nav id="left">
+    <!-- ORCH mode nav (DEFAULT) -->
+    <div id="ln-orch-content" style="display:flex;flex:1;flex-direction:column;overflow:hidden;">
+      <div class="lp-section">task history</div>
+      <div id="history-list"><div class="hist-empty">タスクはまだありません。</div></div>
+      <div class="ctx-panel">
+        <div class="ctx-label">context data</div>
+        <div class="ctx-row"><span class="ctx-dot" id="cdot-survey"></span><span class="ctx-key">survey</span><span class="ctx-val" id="cval-survey">—</span></div>
+        <div class="ctx-row"><span class="ctx-dot" id="cdot-persona"></span><span class="ctx-key">persona</span><span class="ctx-val" id="cval-persona">—</span></div>
+        <div class="ctx-row"><span class="ctx-dot" id="cdot-brief"></span><span class="ctx-key">brief</span><span class="ctx-val" id="cval-brief">—</span></div>
+        <button class="ctx-add-btn" onclick="openModal('ctx-modal')">+ データを追加</button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="main">
+    <!-- VIEW: TARGET SETTING（初期画面） -->
+    <div id="view-target" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <!-- 保存済みバー -->
+      <div id="fsaved-bar" style="display:none;padding:8px 24px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;">
+        <p style="font-size:10px;color:var(--muted);margin:0 0 5px;">保存済みターゲット</p>
+        <div id="fsaved-chips" style="display:flex;flex-wrap:wrap;"></div>
+      </div>
+      <!-- ファネル本体 -->
+      <div style="flex:1;overflow-y:auto;">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,224px);gap:18px;padding:20px 24px;">
+          <div id="funnel-wizard"></div>
+          <div id="funnel-panel" style="position:sticky;top:0;max-height:calc(100vh - 110px);overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: AGENTS HOME（エージェント選択） -->
+    <div id="view-agents" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+      <!-- ターゲットバッジ -->
+      <div id="target-badge" style="display:none;padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;align-items:center;gap:10px;">
+        <span style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">ターゲット</span>
+        <span id="target-badge-text" style="font-size:13px;color:var(--text);font-weight:500;flex:1;"></span>
+        <button onclick="showTargetView()" style="font-size:12px;padding:4px 12px;background:var(--bg);border:1px solid var(--border);color:var(--blue);cursor:pointer;border-radius:20px;font-family:inherit;">変更</button>
+      </div>
+      <!-- エージェントカード -->
+      <div id="view-agents-inner" style="flex:1;overflow-y:auto;padding:24px 28px;">
+        <div class="agents-hero">
+          <h1 style="font-family:var(--serif);font-weight:400;font-style:italic;font-size:22px;">エージェントを選ぶ</h1>
+          <p>話しかけたいAIを選んでください。ターゲット設定の条件が自動で引き継がれます。</p>
+        </div>
+        <div id="cards-container"></div>
+      </div>
+    </div>
+
+    <!-- VIEW: AGENT CHAT -->
+    <div id="view-chat" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div class="chat-hdr">
+        <button class="chat-back" onclick="showAgentsView()">← 一覧へ</button>
+        <div class="chat-agent-icon" id="chat-icon"></div>
+        <div>
+          <div class="chat-agent-name" id="chat-name"></div>
+          <div class="chat-agent-cat" id="chat-cat"></div>
+        </div>
+      </div>
+      <div id="msgs"></div>
+      <div id="checklist-panel" class="closed">
+        <div class="cl-bar" onclick="toggleChecklistPanel()">
+          <span class="cl-label">☑ 進行チェックリスト</span>
+          <span id="cl-progress" class="cl-progress" style="display:none;"></span>
+          <span style="flex:1;"></span>
+          <span id="cl-toggle-icon" style="font-size:11px;color:var(--muted);">▲</span>
+        </div>
+        <div id="cl-content" class="cl-content"></div>
+      </div>
+      <div id="hook-panel" class="closed">
+        <div class="hook-bar" onclick="toggleHookPanel()">
+          <span class="hook-label">⚡ DI品質チェック</span>
+          <span id="hook-score-badge"></span>
+          <span style="flex:1;"></span>
+          <span id="hook-toggle-icon" style="font-size:11px;color:var(--muted);">▲</span>
+        </div>
+        <div id="hook-content" class="hook-content"></div>
+      </div>
+      <div class="chat-input-area">
+        <div class="chat-row">
+          <textarea id="ci" rows="1" placeholder="メッセージを入力… (Cmd+Enter で送信)"></textarea>
+          <button id="send-btn" onclick="sendMsg()">送信</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: ORCHESTRATE -->
+    <div id="view-orch" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div id="input-zone">
+        <div class="iz-label">// ハーネスにマーケティング課題を投げてください（Cmd+Enter で実行）</div>
+        <div class="iz-row">
+          <textarea id="task-input" rows="2" placeholder="例：30代女性向け新商品のコンセプトとキャッチコピーをリサーチから一気に作りたい"></textarea>
+          <button id="run-btn" onclick="runOrchestrator()">▶ 実行</button>
+        </div>
+        <div class="iz-hints" id="hint-chips"></div>
+      </div>
+      <div id="exec-area">
+        <!-- ハーネスランディング（タスク未実行時） -->
+        <div id="harness-landing" style="padding:24px 24px 0;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">
+            <div style="padding:13px;background:#fff;border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--gold);">
+              <p style="font-size:10px;font-weight:700;color:var(--gold-bright);margin:0 0 4px;letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono);">01 Plan</p>
+              <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.55;">課題を分解し必要なエージェントを自動選択</p>
+            </div>
+            <div style="padding:13px;background:#fff;border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--amber);">
+              <p style="font-size:10px;font-weight:700;color:#C27B00;margin:0 0 4px;letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono);">02 Execute</p>
+              <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.55;">前の出力を自動チェーンしながら順次実行</p>
+            </div>
+            <div style="padding:13px;background:#fff;border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--green);">
+              <p style="font-size:10px;font-weight:700;color:#0A8F5C;margin:0 0 4px;letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono);">03 Synthesize</p>
+              <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.55;">全出力を統合して最終成果物を生成</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <div style="height:1px;flex:1;background:var(--border);"></div>
+            <span style="font-size:10px;color:var(--dim);letter-spacing:.07em;text-transform:uppercase;font-family:var(--mono);">harness capabilities</span>
+            <div style="height:1px;flex:1;background:var(--border);"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:#fff;border:1px solid var(--border);border-radius:8px;">
+              <span style="font-size:16px;">⚡</span>
+              <div><p style="font-size:12px;font-weight:600;color:var(--text);margin:0 0 1px;">品質チェック自動実行</p><p style="font-size:11px;color:var(--muted);margin:0;">5項目・スコア付き</p></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:#fff;border:1px solid var(--border);border-radius:8px;">
+              <span style="font-size:16px;">☑</span>
+              <div><p style="font-size:12px;font-weight:600;color:var(--text);margin:0 0 1px;">終了条件チェックリスト</p><p style="font-size:11px;color:var(--muted);margin:0;">ドリフト防止</p></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:#fff;border:1px solid var(--border);border-radius:8px;">
+              <span style="font-size:16px;">🎯</span>
+              <div><p style="font-size:12px;font-weight:600;color:var(--text);margin:0 0 1px;">ターゲット設定連動</p><p style="font-size:11px;color:var(--muted);margin:0;">47ナレッジ・人口データ</p></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:#fff;border:1px solid var(--border);border-radius:8px;">
+              <span style="font-size:16px;">💾</span>
+              <div><p style="font-size:12px;font-weight:600;color:var(--text);margin:0 0 1px;">案件ごとに保存</p><p style="font-size:11px;color:var(--muted);margin:0;">localStorage永続化</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="exec-empty" id="orch-empty">
+          <div class="exec-empty-icon">&gt;_</div>
+          <div class="exec-empty-text">課題や目標を入力してください。<br>AIが自動でエージェントを選び、順番に実行します。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT MODAL -->
+<div class="overlay" id="ctx-modal">
+  <div class="modal">
+    <div class="modal-head"><span class="modal-title">CONTEXT DATA</span><button class="modal-close" onclick="closeModal('ctx-modal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="m-block"><div class="m-label">survey // アンケート結果・調査まとめ</div><textarea class="m-ta" id="ctx-survey-in" placeholder="集計結果、主要な発見事項..."></textarea></div>
+      <div class="m-block"><div class="m-label">persona // ターゲット・ペルソナ</div><textarea class="m-ta" id="ctx-persona-in" placeholder="田中美咲（32歳・会社員）..."></textarea></div>
+      <div class="m-block"><div class="m-label">brief // 案件背景・目的</div><textarea class="m-ta" id="ctx-brief-in" placeholder="クライアント：○○株式会社..."></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn-s" onclick="closeModal('ctx-modal')">cancel</button><button class="btn-p" onclick="saveCtx()">save</button></div>
+  </div>
+</div>
+
+<!-- API MODAL -->
+<div class="overlay" id="api-modal">
+  <div class="modal" style="width:400px;">
+    <div class="modal-head"><span class="modal-title">API KEY</span><button class="modal-close" onclick="closeModal('api-modal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="m-hint-box">取得先: <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue)">console.anthropic.com</a></div>
+      <input type="password" class="m-inp" id="api-inp" placeholder="sk-ant-api03-...">
+    </div>
+    <div class="modal-foot"><button class="btn-s" onclick="closeModal('api-modal')">cancel</button><button class="btn-p" onclick="saveApi()">connect</button></div>
+  </div>
+</div>
+
+<!-- MANIFEST MODAL -->
+<div class="overlay" id="manifest-modal">
+  <div class="modal" style="width:620px;">
+    <div class="modal-head"><span class="modal-title">CAPABILITY MANIFEST // エージェントSEO</span><button class="modal-close" onclick="closeModal('manifest-modal')">&times;</button></div>
+    <div style="padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;color:var(--muted);">// AIエージェントがこのシステムを発見・呼び出す際に使用する機械可読な能力記述</div>
+    <pre id="manifest-output"></pre>
+    <div class="modal-foot" style="justify-content:space-between;">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted);">// Expose via MCP or API endpoint for agent discoverability</span>
+      <div style="display:flex;gap:8px;"><button class="btn-s" onclick="copyManifest()">copy JSON</button><button class="btn-s" onclick="closeModal('manifest-modal')">close</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+/* ============================================================
+   DI AI PLATFORM — UNIFIED (Agents + Orchestrator)
+============================================================ */
+var CATS = {
+  research:{color:'#0A6E6E',light:'#E0F2F1',bar:'#0A6E6E'},
+  strategy:{color:'#C8321A',light:'#FDF0ED',bar:'#C8321A'},
+  creative:{color:'#B45309',light:'#FFFBEB',bar:'#F59E0B'},
+  media:{color:'#4338CA',light:'#EEF2FF',bar:'#6366F1'}
+};
+
+var DI_KNOWLEDGE = [
+  '【会社情報】株式会社デジタルアイデンティティ（DI）。マーケティングリサーチから戦略立案・クリエイティブ開発・広告運用・効果測定まで一気通貫のワンストップサービスを提供。調査専門会社との最大の違いは「調査して終わり」ではなく実行支援まで行う点。',
+
+  '【マーケティングリサーチの3つの基本目的】\n①リスク軽減：「失敗のコストを最小化する」—データに基づく客観的な提言、リスクを定量化した上での多角的な示唆\n②機会発見：「見えていない可能性を発見する」—潜在ニーズの発見による新市場創造、顧客インサイトに基づく独自戦略\n③効果最大化：「限られたリソースで最大の成果を得る」—事前に最適解を予測・検証、高速PDCAサイクルの実現',
+
+  '【提案すべき顧客の6タイプ】\n①売上/CVが伸び悩んでいる企業（原因特定が必要）→顧客行動分析で隠れた課題を発見\n②新商品・サービス開発を検討中の企業（市場ニーズが不明確）→ニーズ調査で開発の方向性を明確化\n③広告費用対効果が見えない企業（ROIが不明確）→効果測定でROI最適化\n④顧客クレーム・離脱増加企業（原因不明）→顧客満足度調査で改善点を発見\n⑤市場シェア低下・競合が不明な企業（差別化不足）→競合分析で差別化戦略を構築\n⑥EC・デジタル化で予測困難な企業（方向性が不明確）→トレンド分析で将来予測を支援',
+
+  '【課題発見のための質問例（営業ヒアリング）】\n＜現状把握（AS IS）＞\n・現在のマーケティング活動で最も困っていることは？\n・顧客からの声をどのように収集/調査されていますか？\n・競合他社と比較して、どの点が差別化だと考えますか？\n・一番注力しているサービスと、注力している理由は？\n＜将来志向（TO BE）＞\n・3年後、どのような市場ポジションにいたいですか？\n・新しい施策を検討する際、何を判断基準にしますか？\n・理想的な顧客像はありますか？\n・顧客に対してどういう存在でいたいですか？',
+
+  '【調査の種類と特徴】\n定量調査：「どのくらいか」を数値で測る。インターネット調査・会場調査・ホームユーステスト。多数（数百〜数千人）。統計解析。コスト中程度。短期間。\n定性調査：「なぜか」を言葉で理解する。グループインタビュー・デプスインタビュー・行動観察調査。少数（数人〜十数人）。テキスト分析・解釈。コスト高い。長期間。\n→両方を組み合わせることで最大の効果。定性で仮説→定量で検証、または定量の傾向→定性で深掘り。',
+
+  '【Web解析との違い】\nWeb解析/アクセス解析：自社Webサイト内のみ対象。行動データ（PV・滞在時間）を自動収集。「何が起きたか」を把握。低コスト。\nマーケティングリサーチ/市場調査：市場全体・競合・潜在顧客を含む広範囲。行動+心理+態度データを能動的に収集。「なぜ起きたか」を理解。中〜高コスト。\n→補完関係：両方を統合することでより包括的で効果的なマーケティング戦略の立案が可能。',
+
+  '【調査アプローチの2パターン】\nアプローチ①（Web解析→市場調査）：サイト上の問題点発見→仮説構築→アンケートで原因を深掘り→解決策実施。メリット：Webで発見された問題点に対して深い理解が得られる。\nアプローチ②（市場調査→Web解析）：インタビューでインサイト発見→仮説構築→A/BテストやログでWeb検証→戦略実行。メリット：発見したインサイトをWebで定量的に検証できる。',
+
+  '【課題別の市場調査の活用法】\n新規事業開発：潜在ニーズの発掘と市場規模の把握／ペルソナ設計と顧客像の明確化／競合分析と差別化ポイントの特定\n成長鈍化：顧客満足度・不満点の特定と改善／競合比較による強みの再発見／市場トレンド分析と成長戦略の立案\nブランド戦略：ブランドイメージ調査とポジショニング分析／ターゲット再定義と顧客セグメント分析／メッセージ浸透度測定と改善策立案\nWeb改善：ユーザビリティ調査とUI/UX改善／顧客行動パターン分析と阻害要因特定／A/Bテスト設計と継続的改善サイクル構築',
+
+  '【企業規模・業種別アプローチ】\n大企業：包括的・長期的なリサーチ計画、複数部門連携の調査設計、グローバル展開を見据えた設計。\n中小企業：費用対効果の明確化、段階的実施による負担軽減、即効性のある施策提案、外部リソース活用による専門性補完。\nスタートアップ：アジャイルな手法、市場検証重視、MVP開発支援、低コストソリューション。\nBtoB企業：意思決定プロセスの分析、ROI効果測定重視、業界専門性の把握、関係性構築の調査。\nBtoC企業：感情・体験価値の分析、広範囲な市場調査、デジタル行動分析、ブランド認知度調査。',
+
+  '【期待できる効果（調査活用の時系列）】\n短期（1〜3ヶ月）：CV率10〜30%向上、広告配信最適化、Webサイト改善、営業トークの調整。\n中期（3〜12ヶ月）：売上20〜40%向上、ROI改善20〜50%、商品・サービスの改良、価格戦略見直し、顧客セグメント別施策。\n長期（1年以上）：市場シェア拡大、ブランド価値向上、新商品開発の方向性決定、市場拡大戦略策定。',
+
+  '【DIのワンストップサービスの強みと差別化】\n調査専門会社との違い：①調査から施策実行まで一貫対応 ②企画設計のヒアリングに重点 ③途中経過の報告と綿密なMTG ④コスト効率の良い予算配分 ⑤継続的な改善サイクルの実現 ⑥広告・クリエイティブ・SEO・サイト制作との連携。\nテクノロジー活用：AI・機械学習によるデータの自動分析と迅速な洞察抽出、ソーシャルリスニング（SNS・動画からの生の声分析）、テキストマイニング。\n人材：マーケティングリサーチャー・デジタルマーケティング専門家・クリエイティブディレクター・SEO/Web制作エンジニアのチーム対応。',
+
+  '【各分野との連携メリット】\n広告：調査結果に基づくターゲティング精度向上／ペルソナを活用したクリエイティブ開発／効果測定による継続的な最適化。\nクリエイティブ：データドリブンなデザイン・コンテンツ制作／ユーザビリティ調査に基づくUX/UI改善／ブランドイメージ調査を反映したビジュアル戦略。\nSEO：ユーザーリサーチに基づくキーワード戦略／検索意図とビジネス目標の両立／コンテンツマーケティングとSEOの相乗効果。\nサイト制作：ユーザビリティ調査に基づくサイト設計／コンバージョン最適化のための継続改善／多角的データ分析による戦略的サイト構築。',
+
+  /* ============================================================
+     以下：追加ナレッジ（2025年4月投入）
+     出典：調査分析のすすめ / DS概要資料 / DS社内分析資料 / アップルオート提案書
+  ============================================================ */
+
+  '【DI調査・分析の3つの鉄則（社内哲学）】\n①調査・分析は「広告（AD）」「制作」「SEO」すべてに必須のツール：各施策の起点として機能する\n②調査・分析は「仮説・仮説・仮説」：課題をヒアリングして仮説を構築し、その検証のために調査を設計する\n③調査・分析は「アクションプランまで落とすことが仕事」：調査して報告書を出して終わりではなく、行動計画まで一緒に考えることが真の目的',
+
+  '【DI調査設計の核心思想】\n「構造」ではなく「アクション：こんな風に動いてほしい」で考える。\nサイト設計の例：「こんなディレクトリを作ろう」というページ構造の発想ではなく、「ユーザーがどこから入ってきてどこに行ってほしいか」という行動設計の発想。\nつまり調査の設計も「何を調べるか（構造）」より「調査結果で何を変えたいか（アクション）」を先に決める。',
+
+  '【DIの調査コアプロセス詳細（6ステップ）】\nSTEP1 課題（3週間〜）：クライアントの課題をヒアリングして与件化。課題を洗い出して一覧化・優先化。最初の時間が最重要。\nSTEP2 仮説（1週間〜）：優先順に仮説を構築。構築した仮説の確認と修正。\nSTEP3 実査（1週間〜）：ターゲット条件確認→対象者抽出→実査開始→ローデータ確認。\nSTEP4 分析（2週間〜）：定性=心の構造化（狭く深い分析）、定量=声の数値化（広く浅い分析）。事実と感情は分けて記載。\nSTEP5 報告書作成（1日〜）：今後の方向性の考察・示唆の抽出。事実データの提示で終わる場合もあり。\nSTEP6 報告会：アクションプランの一覧化と優先度提示。優先度に応じて再調査する場合あり。\n目安：1調査＝約1.5ヶ月（定性/定量問わず）',
+
+  '【観察型×聴取型の組み合わせ論】\n観察型（アクセス解析・ログ分析）：強み＝無意識の行動や記憶に残らない行動を把握可能、事実データとして確証性がある。弱み＝消費者の意識や心理的背景が取得できない。\n聴取型（アンケート・インタビュー）：強み＝聞きたい内容をピンポイントにヒアリング可能、意識や内面（インサイト）の調査に強い。弱み＝忘却や勘違いなどの確証性に欠ける、無意識下の行動データは取れない。\n→ 2つを組み合わせることで「行動」と「意識」の両面の解像度が上がる。Web解析（観察型）とアンケート/インタビュー（聴取型）は補完関係。',
+
+  '【DIの調査・分析が広告・SEO・制作に与えるインパクト】\n広告（AD）：ターゲット層の正確な把握→ターゲティング精度向上、費用対効果の最適化→差別化ポイント特定・投資対効果分析。\nSEO：検索意図の正確な把握→検索ニーズ把握、コンテンツギャップの特定→ギャップ領域特定・コンテンツ改善。\nサイト制作：ユーザビリティ評価→UI/UX改善点の特定、コンテンツ戦略の最適化→サイト構造の最適化・ユーザー行動の可視化。',
+
+  '【DIのデータサイエンス（DS）ケイパビリティ】\nDIはマーケティングリサーチに加え、データサイエンスによる予測・最適化も提供。\n課題の種別と提供価値：顧客離れ予測（プロファイル＋アクティビティ→離脱確率）、需要予測（市況データ→購買数予測）、広告最適化（広告＋コンテンツ＋プロファイル→クリック確率）、売上予測・クロスセルレコメンド・キャンペーン最適化。\nデータ活用フロー：①学習データ準備→②学習実行→③学習済みモデル作成→④予測データ準備→⑤予測実行→⑥予測結果取得→⑦最適化。\nDIの強み：既存の広告・制作データと人材を保有した状態でDS事業に進出するため差別化可能。低価格帯での案件推進が可能（競合は高〜中価格帯ツールを使用）。\nツール選定実績：Prediction One（年額160万〜）、Alteryx（65万〜）、dotData（1,200万）、Dataiku（615〜1,230万＋60万/ライセンス）を比較・提案。',
+
+  '【DI実績事例①：ソニー生命（定量調査・定性調査）】\n業種：生命保険 / 課題：デジタル戦略不在・場当たり的・オウンドメディア戦略策定が必要。\n定量調査：27〜55歳・世帯年収500万円以上・全国・n=6,000。加入状況・認知・イメージ等を詳細分析。クロス分析で年代・収入別傾向を把握。ワークショップでアイデアを洗い出し。\n定性調査（デプス）：30〜40代・高収入世帯・4名へのデプスインタビュー。保険加入プロセス・情報収集方法・各年代性別の特徴を分析。モックを利用してユーザビリティを確認。\n結果：各層のニーズに合致したコンテンツ・機能を整理。イメージ・トンマナがサイト制作の一助に。コンテンツを刷新し利活用を促進。',
+
+  '【DI実績事例②：Nimway（座席管理システム）定量調査＋覆面調査】\n業種：SaaS（座席管理システム） / 課題：コロナ後のオフィス回帰傾向把握・市場ニーズの定量的把握・座席管理システムの需要予測。\n定量調査：1都3県＋名阪・20〜59歳・勤務先従業員100人以上・n=692。ハイブリッドワーク浸透と座席管理ニーズ増加を確認。業界・職種別に分析・グラフで視覚化。アンケート結果の一部をサイト改修に反映。\n覆面調査（競合調査）：競合10社のサービスを調査。2次データをもとにリスト化→価格・機能・特徴を分析→2名のペルソナを設定し2回調査実施。\n結果：各社の詳細情報をまとめ。価格・特徴・機能の比較。トーク術や差別化を企業別に分類。競合サービスを参考にサイトを改善。ポジショニングマップ（機能×価格）も作成。',
+
+  '【DI実績事例③：アップルオートネットワーク（中古車買取）Webアンケート調査】\n業種：中古車買取（全国267店舗） / 課題：SEOセッション数22%減・CV数18%減（2025年4〜6月 vs 前年同期）、「車査定」「車買取」などBIGキーワードで順位下落、競合（ガリバー・ネクステージ）の出店増加とオンライン査定台頭。\n調査設計の特徴：\n・3つの仮説を設定→①検索・比較時の必須情報要素の抽出 ②比較検討を促進するコンテンツ要素 ③申込み直前の阻害要因のコンテンツ解消可能性\n・ターゲット：25〜69歳・車の日常利用者・中古車売却検討/経験者（検討層70%：経験層30%）\n・サンプル：4,000人（6エリア：北海道東北・関東・中部・関西・中国四国・九州沖縄）\n・割付方法：加重平均法（人口比7：店舗数比3）で地域代表性と事業実態を両立\n・設問数：スクリーニング10問＋本調査20問（売却きっかけ・情報収集方法・業者比較の決め手・ロードサイド店舗の認知・オンライン/実店舗の使い分け・阻害要因・アップルオート認知評価など）\n・スケジュール：企画〜報告まで約2ヶ月（7月〜9月）\n活用目標：戦略立案3〜6ヶ月→ブランディング強化6〜12ヶ月→事業拡大12ヶ月以上の段階設計',
+
+  /* ============================================================
+     以下：追加ナレッジ（2025年4月 第2弾）
+     出典：三井住友DS提案書 / 大京提案書 / らかんスタジオ提案書 / 日本損保協会提案書
+  ============================================================ */
+
+  '【DI会社基本情報（最新版）】\n会社名：株式会社デジタルアイデンティティ（DI）\n設立：2009年\n従業員数：400名（2024年5月時点）\n拠点：東京（〒150-0022 渋谷区恵比寿南1-15-1 A-PLACE恵比寿南5F）・福岡（天神2-14-8 福岡天神センタービル13F）・北海道（札幌市中央区大通西4-6-1 札幌大通西4ビル3F）\n事業構成：AD（運用型広告・ブランディング）/ SEO（戦略から実装まで一気通貫・コンテンツマーケティング）/ DX（マーケティングダッシュボード・MA・RPA・AI）/ CREATIVE（成果型サイト設計・ブランディング上流から）',
+
+  '【DI金融業界専門チームの強みと実績】\n金融業界専門チーム（Financial Sector）の特徴：\n①金融知識：業界理解・法規制理解・金融商品理解・コンプライアンスチェック（ディスクレーマー・募文等）・法改正対応・金融業界出身コンサル在籍\n②クリエイティブ：50名超の制作チーム（Webデザイン・グラフィック・コーディング/JS・動画撮影/編集・ライティング・イラスト・アプリ開発・CMS構築）\n③デジタルマーケティング：広告（運用型・ブランディング）・SEO支援・LPO支援の専門チーム\n金融業界の具体的実績：\n・内閣府（野村総合研究所）：マイナポータル「e-私書箱」民間送達サービス制作（設計〜WF〜デザイン〜コーディング〜JS）\n・日本証券業協会①：SDGs特設サイト制作（企画構成〜WF〜デザイン〜コーディング）\n・日本証券業協会②：「投資の時間」20代向けコンテンツ（記事〜イラスト〜一気通貫）\n・全国地方銀行協会：ホームページリニューアル（企画〜UI/UX設計〜デザイン〜コーディング〜CMS）\n・全国銀行協会①：ZEDI紹介動画（実写・30秒×5本・企画〜キャスティング〜撮影〜編集）\n・全国銀行協会②：「FXを学ぼう」特設ページ制作（企画〜デザイン〜コーディング）',
+
+  '【DI実績事例④：三井住友DSアセットマネジメント（資産運用）Webアンケート調査】\n業種：資産運用会社（投資信託）/ 課題：コーポレートサイトリニューアルに向けたターゲット把握。ファンド詳細ページのリピート率80%だが他ページへの回遊がほぼない。経営層・社員ともにUI/UX・ターゲット不明瞭・ブランド訴求不足を課題認識。\n調査設計の特徴：\n・3つの仮説：①サイト訪問者属性と要望の発掘 ②情報伝達度合い（認知） ③誘導する動線（導線）\n・3セグメントターゲット設計：見込み客（インデックス投資済み・アクティブ未経験・情報収集目的）／積極投資家（アクティブ投資済み・三井住友DS商品保有・運用確認メイン）／販売会社担当（商品販売者・顧客説明資料探し）\n・サンプル：n=1,500・20〜60代・全国・男女\n・設問数：スクリーニング10問＋本調査30問（セグメント別設問設計）\nペルソナ設計の深さ：5幕構成ドラマティックストラクチャー（表層特性→中間層→深層特性→社会的文脈→意思決定物語）で佐藤誠（42歳・IT中管・年収850万・金融資産2,200万）を設計。深層には「家族を経済的に守れなくなる恐怖」「判断を誤ることへの恐れ」という隠れた動機も含む。',
+
+  '【DI実績事例⑤：株式会社大京（分譲マンション THE LIONS）調査・分析提案】\n業種：不動産（分譲マンション・全国展開） / 課題：2023年にブランドを「THE LIONS」に刷新（ターゲット：ファミリー→パワーカップル、世帯年収800万→1,200万円）したが、名古屋・南山エリアの「リジェ南山」が販売不振。\n4つの仮説：①価格と価値のバランス（価格が市場相場と乖離していないか）②商品設計と顧客ニーズの適合性（間取り・設備が富裕層の生活スタイルに合致しているか）③立地環境と生活利便性（買物・医療・教育・交通の競合比優位性）④ブランド認知と訴求力（リジェブランドの価値が潜在顧客に伝わっているか）\n調査効果をROI（受注件数）で明示：データ分析のみ→+1件受注可能性、市場調査（定量/定性）追加→+2〜3件受注可能性。\n3段階ターゲットセグメント：潜在層（自ら検索しない・課題想起のみ）→コンシェルジュ等迂回アプローチ、顕在層（情報収集・比較検討中）→既存施策効率化、新規ターゲット（近隣住民）→新しい切り口。\n調査手法の優先順位：①データ分析★★★→②定量調査★★★→③デプスインタビュー★★→④グループインタビュー★',
+
+  '【DI実績事例⑥：らかんスタジオ（フォトスタジオ）デジタルマーケティング提案】\n業種：体験型サービス（フォトスタジオ・ベイビーコレクション） / 課題：少子化・家計支出慎重化でフォトスタジオ業界が厳しい環境。マタニティ・お宮参り顧客の真のニーズが不明確。\n3つの成長戦略：①競合差別化価値の最大化（独自ポジション確立・データ販売/単価向上）②新規顧客獲得価値の最大化（Instagram強化・24時間Web予約）③長期的な顧客関係価値の最大化（マタニティ→お宮参り→1歳誕生日への継続関係）\n3パターンの調査進行ルート：①慎重分析型（Webアンケート→グループインタビュー→1ON1→Web調査）②緊急対応型（グループインタビュー→Webアンケート＋Web調査→1ON1）③予算制約型（グループインタビュー→Webアンケート→効果確認後に追加）\n調査手法別価格（実勢値）：Webアンケート（n=1,000・25問）100万円〜、1ON1インタビュー（6名）120万円〜、グループインタビュー（4Gr×4名）70〜80万円〜、Web調査60万円〜、全部まとめて350万円〜。\n24ヶ月3シナリオROI（確率付き）：ベースシナリオ（60%）ROI約400%・月間売上250万→394万（+58%）、楽観シナリオ（10%）ROI約1,000%・月間売上250万→558万（+123%）、悲観シナリオ（30%）ROI約▲30%・月間売上250万→270万（+8%）。\n24ヶ月3フェーズロードマップ：Phase0基盤構築（予約数+20%・SNS流入+25%）→Phase1差別化実現（予約数+50%・SNS流入+80%）→Phase2市場リーダー（予約数+80%・SNS流入+150%）',
+
+  '【DI実績事例⑦：日本損害保険協会（業界団体）多角的デジタル提案】\n業種：損害保険業界団体 / 内容：事業者向け保険普及促進のためのアンケート調査・特設サイトリニューアル・啓発チラシ・PR施策・防火標語制作。\nPRワイヤー配信実績（防火標語キャンペーン）：過去3年間・平均75件リリース・広告換算平均3,179万円相当のメディア掲載（朝日新聞・ORICON等）。配信先：全2,500媒体・4,000カ所、全リリース転載対象56サイト（業界最多クラス）。新聞クリッピング：全国802紙・2週間モニタリング・広告換算付きレポート。\nDIのPR・パブリシティ対応力：プレスリリース配信から新聞・Webメディアクリッピングまで一気通貫。Twitter広告配信連携も含む総合PR支援が可能。',
+
+  '【DI SEO・UX改善の数値実績】\nSEO継続支援事例①（一般財団法人・品質試験業）：サイトリニューアル時からSEOコンサルティング開始。継続的なSEOコンサルティングを実施。リニューアル後7ヶ月で流入数約3.5倍を達成。\nSEO継続支援事例②（人材業界）：リニューアル時SEOコンサルティング＋継続コンサルティング＋コンテンツマーケティング支援。5ヶ月で最高順位4位・流入数約2倍を達成。\nUI/UX改善実績①：コラム詳細の目次上にエリア検索機能を追加→一覧ページ遷移率改善率407%・見学予約完了率改善率404%。\nUI/UX改善実績②：一覧ページに詳細ページへの明確な導線を設置→詳細ページ遷移率246%改善・見学予約完了率114%改善。\nリニューアル後の伴走支援価値：通常のリニューアルは1ヶ月後に流入・問い合わせが急落する（最大▲70%）。DIの伴走支援では継続的な分析・SEO・コンテンツ改善により数値を回復・成長軌道に乗せられる。「なぜ数値が落ちたか・どう改善するか」を随時報告できる体制が差別化ポイント。',
+
+
+  '【DI実績事例⑧：一建設（リースバック）面談時継続アンケート調査】\n業種：リースバック（不動産系金融）/ 調査手法：面談時アンケート（定量・継続調査）/ 期間：2022年2月〜2024年5月（13波）/ 総サンプル：n=942。\n調査の特徴：面談（商談）の場でリアルタイムに収集する接点活用型調査。毎回同一設問を継続することでトレンド変化を追跡。競合問合せ状況・住まいの予定期間・検討理由を3軸で把握。\n主要インサイト：\n①競合状況：問合せ0社（独自）が42%（最多）だが減少傾向。競合TOP→セゾン16.8%・ハウスドゥ15.3%・SBI7.2%。都市型に寄せた結果、従前と異なる競合プレイヤーが出現。\n②年代変化：2022年11月以降70代の面談が増加傾向。60代が最多（342名・36%）。\n③住まい意向：ずっと住み続けたいが約50%で最多・増加傾向。4〜5年以内の退去希望が減少傾向。\n④検討理由TOP4で80%超：借入ローン返済31%・生活資金確保24%・老後資金確保13%・事業用資金確保12%。老後資金確保が増加傾向。\nDIの貢献：継続調査設計・クロス分析（性別×年代×競合）・経営層向け速報レポート作成。',
+
+  '【DI実績事例⑨：アクサ生命（生命保険）Webアンケート調査票設計】\n業種：生命保険 / 課題：顧客情報収集・MAとの連動・エンゲージメント向上。\n調査票設計（Q1〜Q8）：Q1（SA）年齢スクリーニング、Q2（SA）住まいの状況、Q3（MA）メルマガ興味コンテンツ複数選択（←セグメント分岐の起点）、Q4（SA）保険保障への満足度、Q5（MA）不満の具体的内容（Q4で不満回答者のみ・ロジック分岐）、Q6（MA）加入検討・興味がある保険商品、Q7（MAMTマトリクス）ライフイベントの重要度（就職・結婚・妊娠・入学・受験・引越・住宅購入・転職・退職・介護など11項目×時系列）、Q8（SA）自動車購入ライフイベントの状況。\nMAとの連動設計：Q3回答者→興味コンテンツ継続配信（セグメントA）/ 未回答・無関心層→医療がん・資産形成をランダム配信（セグメントB）。\n対象設計：25〜55歳の男女個人契約者（法人・事業主・役員を除く）。\nDIの貢献：設問設計（SA/MA/MAMTの混在・ロジック分岐）・MAツール連動の仕様策定・セグメント配信計画。',
+
+  '【DI調査設計の手法：ライフイベント軸の顧客セグメント設計】\n金融・保険業界での調査設計において、ライフイベントを軸にした顧客セグメント化が効果的。\n収集すべきライフイベント項目（推奨11項目）：就職・結婚・妊娠出産・子どもの入園入学・子どもの受験進学・引越・住宅購入リフォーム・転職起業・退職・介護・その他。\n調査設計のポイント：①SA（単一回答）属性・満足度・態度など1択 ②MA（複数回答）興味・懸念・行動など複数選択 ③MAMT（マトリクス）複数項目×複数選択肢の重要度評価 ④ロジック分岐：満足度スコアで次の設問を出し分ける等。\nMA連動：調査回答をMAに流し込み、興味セグメント別コンテンツ配信・営業トーク個別化・商談機会創出に活用。',
+
+  '【DIのDX/MAコンサル支援実績と社内ケイパビリティ】\nDIはマーケティングリサーチに加え、DX推進・MA（マーケティングオートメーション）構築・コンサルも提供。\nDI MA対応案件実績：SUBARU（レポーティング・分析）・ソニーミュージックソリューションズ（MAコンサル）・幸田様（MA構築）・BDG様（旧Pardot構築）。\nMA支援の流れ：①DX化の現状把握 ②顧客データ統合管理設計 ③MAシナリオ設計（ライフイベント・興味セグメント別）④コンテンツ配信ロジック設計 ⑤PDCAサイクル構築。\nDIの強み：調査で明らかにした顧客インサイトをMAシナリオに直接反映できるワンストップ体制。調査→セグメント設計→MA構築→効果測定まで一貫。',
+
+  '【DI調査アプローチの対比：勘×経験 vs データ起点】\nよくあるアプローチ（NG）：勘（イメージ）と経験から入り、方向性を先に決めてから数字で裏付けようとする。結果として仮説が正しく検証されず、施策の再現性が低い。\nあるべき姿（DIのアプローチ）：定量と定性のデータを起点にする。まずファクトで現状を把握し、そこから仮説→設計→実査→示唆の順で進める。意思決定が効率化され、業務の再現性と証明可能性が高まる。\n調査で見えてくること：①差別化ポイントの発見 ②調査結果からの傾向把握 ③業務プロセスの可視化 ④アクションプランの整理 ⑤具体的施策の実行準備。\nもたらされる価値：①施策結果からの判断効率化 ②業務効率化と再現性向上 ③見える化による効果証明 ④改善されない効果のリストアップ ⑤別施策を優先順に実行 ⑥定量的な継続確認。',
+
+  '【DIのレポーティング品質基準】\n調査報告書はデータ収集後に加工・分析する。数字やグラフから見てわかるもののみ記載する。クライアントが見て考える資料にならないよう、分かりやすく伝えることをチーム内で統一している。\n具体的なルール：①注目箇所のみ色付けしポイントがあればコメントを添える ②グラフから読み取れる部分のみコメント（解釈を押し付けない）③不要・優先度の低い背景色・補助線・罫線をなくし読み手への誤ったメッセージを排除 ④調査結果サマリーには目的達成への推奨アクションプランを記載。\n発言録の扱い：発言録はカテゴリー分類した形で納品。カテゴリーからプロットや新ペルソナを作成し、ターゲットのインサイトやキーワードを抽出して制作・SEOに連携。',
+
+  '【観察型×聴取型の組み合わせ設計手順（具体的な実施例）】\nSTEP1（アンケート調査）：意識面・オフライン行動の聴取。購買有無・来店などオフライン行動を聴取しログ読み込みの参照点とする。購買のきっかけや重要点・情報収集媒体等、購買に至る意識面を把握。\nSTEP2（ログ調査）：オンライン行動の集計。ネット利用時間・Web利用状況などから興味関心を把握しペルソナを理解。検討時の閲覧サイト・コンテンツ・キーワードをファクトで理解。\n組み合わせの活用イメージ：誰にアプローチするか（ターゲット）× どこで何を訴求するか（チャネル・メッセージ）の戦略設計に直結。コンテンツ制作・広告出稿メディア選定・商品サービス利用拡大施策に活用。\nハルメク社など50代以上女性をターゲットにするメディア企業には、オフライン行動（購読・来店・口コミ）をアンケートで把握しながらWebログと掛け合わせる設計が特に有効。'
+,
+
+  '【DI実績事例⑩：住友金属鉱山（BtoB製造業）SEO・GA分析・Pardot活用改善】\n業種：金属素材メーカー（BtoB製造業）/ 対象：コーポレートサイト＋粉体事業部サイト「クロスマイニング（X-Mining）」/ 期間：2020〜2022年（継続支援）。\nコーポレートサイトGA分析（2020年6月）：集計期間2019年6月〜2020年5月・年間セッション数推移・デバイス別分析（PC83.2%・モバイル14.8%・タブレット2.0%）・直帰率66.81%・ページ/セッション2.44。PCからの流入が圧倒的多数（BtoB製造業の特徴）。\nクロスマイニングGA設定支援：新規GAプロパティ設定・広報IR部門/粉体事業部/DI三者の権限分担設計。ユーザー管理権限（広報IR）・編集権限（粉体事業部・DI）の明確な分離。\nPardot活用改善コンサル（2022年6月）：Pardotを導入済みだが活用が停滞している状態から改善。5ステップで改善：①サイト分析（4月時点の利用動向調査）→②ペルソナ作成（サイト分析ベース）→③カスタマージャーニー（流入〜CVポイントの可視化）→④全体設計（新規リード育成フロー）→⑤改善案とロードマップ提案。展示会・セミナーが新規ユーザー流入のトリガーになっていることをGA分析で発見。\nクロスマイニング流入レポート（2020年7月）：プレスリリース後の初期1〜3日で流入好調・週末に下落後安定。英語ページ（/en/）の流入も確認（グローバル展開対応）。',
+
+  '【BtoB向けKW調査の4ステップ手法（素材・製造業向け）】\n住友金属鉱山（クロスマイニング）向けに構築したBtoB製造業特有のKW調査プロセス。\nSTEP1：軸KWの関連KWを洗い出し、関連度高・低に分類。\nSTEP2：関連度の高いKWにユーザーニーズを追加。ユーザーニーズのカテゴリ：仕組み・成分（基礎理解ニーズ）/ 市場関係（業界動向ニーズ）/ 用途掛け合わせ（活用方法ニーズ）/ 素材掛け合わせ（比較検討ニーズ）/ 製品（購買意向ニーズ）。\nSTEP3：検索ボリュームと競合順位調査。\nSTEP4：軸KW×ユーザーニーズのマトリクスを作成し、優先対策KWを決定。\n主要軸KWと検索ボリューム例：MLCC（仕組み・成分：42,430）・熱伝導（仕組み・成分：36,820、素材掛け合わせ：22,880）・導電（素材掛け合わせ：24,270、製品：22,800）・セキュリティ（防犯道具系：53,860）・防錆（製品：25,890）。',
+
+  '【BtoB製造業のWeb解析・マーケティング特性】\nBtoB製造業（素材・金属・電子材料等）のWeb施策でDIが把握した業種特有の特性。\nデバイス特性：PC流入が83%超（BtoBは業務PCからの検索・閲覧が主流。BtoCと異なりスマートフォン比率が低い）。\n流入トリガー：展示会・セミナー開催後に新規ユーザー数の明確なスパイクが発生。オフラインイベントとデジタル流入の連動を前提に設計する必要あり。\nMA（Pardot）活用：リード管理・育成フローの設計が重要。導入しただけでは活用が停滞するケースが多く、サイト分析→ペルソナ→CJ設計とセットで改善コンサルを行う。\nグローバル対応：大手製造業は英語ページへの流入も発生（グローバル調達担当・海外顧客からのアクセス）。日英対応サイト設計が推奨。\n直帰率の目標設定：BtoB製造業のコーポレートサイトでは直帰率が60〜70%台になりやすいが、サイト内回遊（ページ/セッション向上）と滞在時間延長が改善の主要KPI。'
+,
+  '【DIのクリエイティブ事業ケイパビリティ】\nDIはマーケティングに活きるサイト・LP・バナー・動画を一気通貫で制作。設計思想：Beautiful ≦ Wonderful & Successful——キレイなだけでなく、ゴールまでの道筋（ユーザー行動設計）を先に決めてから制作する。\nNG例：①ディレクトリ構成・ページ内容から考える（構造先行）②ページが単体で終わり回遊しない③SEOが事前考慮されていない④マーケティング施策と紐づいていない。\nあるべき姿：ユーザーがどこから来てどこへ行ってほしいかの行動設計→ストーリー設計→制作の順で進める。\n制作実績：LP300本制作・LP改善500回・バナー改善1,000回。制作チーム50名超（ディレクター・デザイナー・コーダー・動画クリエイター）。',
+
+  '【DIの広告クリエイティブ改善サービス（ADCR）】\n広告成果改善の3要素：①広告クリエイティブ（バナー・動画）②広告運用改善（出稿・ターゲティング）③LP/CV改善（LPO・CRO）。クリエイティブが最も差別化できるポイント。\n「数・質・PDCA」を満たす4つのクリエイティブメソッドで継続改善。\nバナー改善フロー：①現状分析→②改善仮説→③制作→④A/Bテスト→⑤改善。LP改善フロー：①アクセス解析→②ユーザー動線把握→③改善仮説→④LPO実施→⑤効果測定。\n実績：LP300本・LP改善500回・バナー改善1,000回。人材業界でUGC風縦型動画配信によりCPAを大幅改善。',
+
+  '【DIのCROコンサルティングサービス】\nCRO（Conversion Rate Optimization）：サイト全体のCVR改善を目的とした包括的コンサルティング。\n支援範囲：ユーザー理解（市場調査・ペルソナ・インサイト・CJ）→データドリブン（GA解析・BI・タグマネジメント）→施策実行（SEO・広告・LP制作・MA・CRM）。端から端まで（集客〜CV〜育成〜管理）ワンストップ体制。東証プライム上場。\nDIが選ばれる理由：集客（AD/SEO）→制作→ADクリエイティブ→DATA/BI→CONTENTSと事業領域を段階的に拡充。',
+
+  '【DIのSEOコンサルティングサービス】\nSEOコンサルティングの特徴：戦略立案〜実装〜効果測定まで一気通貫。コンテンツマーケティング・技術SEO・内部改善・外部施策を統合対応。\nSEO診断：50項目チェックリストで貴社サイトを100点満点で採点。Title/Description/Keywords・内部リンク・ページ速度・コンテンツ品質等を診断。\nDIが選ばれる理由：①SEOだけでなく広告・制作・解析と連携した総合戦略②アルゴリズム変動への即応体制③コンテンツ制作・実装まで内製対応可。\n実績：一般財団法人（品質試験業）でリニューアル後7ヶ月で流入数3.5倍。人材業界で5ヶ月・最高順位4位・流入数2倍。UI/UX改善で一覧ページ遷移率407%・見学予約404%改善。',
+
+  '【DIのアクセス解析環境構築サービス】\nGA（Google Analytics）の初期設定代行から継続的な分析支援まで一気通貫。\n初期設定内容：プロパティ/ビュー設定・CV設定・IPアドレス除外・パラメータ削除・Google Ads/Search Console連携・Eコマーストラッキング・イベントトラッキング・サイト間セッション引継ぎ（複数ドメイン対応）。\nアクセス解析の目的：流入→サイト回遊→購入まで一気通貫でボトルネックを解析。流入施策と改善の両方にフィードバックしてPDCAを回す。\n活用シーン：テレビCM・マス媒体・SNS・リスティングなど複数チャネルを統合分析し、認知→検索→来訪→CV→意思決定の各段階を可視化。',
+
+  '【DIのLLMO（LLM Optimization）サービス】\n「検索」から「探索」の時代への対応：AI（LLM）による検索行動変化に対応したブランド最適化サービス（2026年1月提供開始）。\n背景：①Google AI MODE正式導入②Safariでの検索数が22年ぶりに減少③AI検索増加でユーザーの質が向上④AIに選ばれるブランドになることが重要に。\nAIブランド推薦の判断基準：ユーザー評価データ（レビュー数・スコア・最新性）、外部権威サイトでの露出（業界メディア・比較サイト・専門家言及）、製品情報の透明性（価格・仕様の具体的記載）、情報アーキテクチャの最適化。\nDIのLLMO支援：AI検索時代に向けたコンテンツ設計・ブランド訴求・サイト構造最適化・エンティティ強化までワンストップ対応。',
+
+  '【DIのバナー・LP PDCA支援サービス】\nバナークリエイティブ改善の必要性：広告出稿/ターゲティングは横並びになりやすくクリエイティブが最大の差別化要因。\nバナー改善フロー：①現状分析（CTR/CVR/CPA）→②改善仮説（訴求軸・ビジュアル・コピー）→③制作→④A/Bテスト→⑤改善施策の特定→⑥横展開。\nLP改善フロー：①アクセス解析（直帰率・離脱ポイント把握）→②ユーザー行動動線把握（ヒートマップ等）→③改善仮説→④LPO実施→⑤効果測定。\n縦型動画活用：YouTubeショート・TikTok・Instagramリールの利用率約7割。縦型動画を視聴し商品購入したユーザーは3割。UGC風フォーマットで広告感を薄め新規獲得に有効。',
+
+  '【DIの動画クリエイティブ活用サービス】\n広告配信の3ポイント：①「どこで」プレイスメント②「誰に」ターゲティング③「何を」クリエイティブ——動画クリエイティブが最も差別化できる。\n主要動画広告媒体：YouTube（プレロール・ショート）・Instagram（リール・ストーリーズ）・TikTok・Facebook動画など。\n縦型動画の重要性：YouTubeショート・Instagramリールの利用率約7割・週5日以上視聴3人に1人。縦型動画きっかけの購入3割。CPA大幅改善実績あり（人材業界でUGC風動画活用）。\n漫画LPの効果：弊社実績でCVR1.62%（通常LP比+72%）・平均滞在時間6分26秒・直帰率57.53%に改善。',
+
+  '【DIのClarityヒートマップ活用・Webサイト分析サービス】\nClarity（Microsoft提供）を活用したヒートマップ分析：永久無料・トラフィック上限なし・プロジェクトメンバー追加無制限。\n主要機能：ヒートマップ（クリック・スクロール・視線の集中点）・セッション録画・即時生成・常時計測。\nDIのサービス活用：Clarityデータを軸にユーザー行動の可視化→改善仮説立案→LPO/CRO実施のPDCAサイクルを回す。ヒートマップ+アクセス解析+ユーザーインタビューの三位一体でサイト改善精度を向上。\nアクセス解析との統合：GA（数値・経路分析）+ Clarity（行動可視化）+ 市場調査（意識・インサイト）を組み合わせることで何が起きているか+なぜ起きているかを両面から把握。'
+].join('\n\n');
+
+var AGENTS = [
+  /* ── リサーチ ── */
+  {id:'depth',cat:'research',name:'生活者インタビューAI',icon:'🎤',
+   iconBg:'#E0F2F1',
+   desc:'ターゲットを模したAIに直接インタビュー。「なぜ買うのか」「何が不満か」という本音を引き出せます。',
+   q:'最近、〇〇の商品を選んだ理由を正直に教えてください',
+   a:'あ、それ先月買いました。SNSで口コミを見て気になって。値段は正直高いと思ったんですけど、毎日忙しくて「もう試してみよう」って感じで…本当は手作りしたいんですけどね。',
+   tips:'「今、どんなことで困っていますか？」のような開かれた質問から始めると、本音が出やすくなります。DIの資料では「AS IS（現状）→TO BE（理想）」の順で聞くことを推奨しています。',
+   starters:['最近の買い物で「失敗した」と感じたことはありますか？','○○についてどんなイメージを持っていますか？','この商品を選ばなかった理由を教えてください'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のデプスインタビューAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nユーザーがインタビュアー、あなたが生活者（インタビュイー）として対話します。定性調査の手法（デプスインタビュー）に基づき、「なぜ」を深く理解するための自然な回答をしてください。ペルソナデータが投入されている場合はその属性・価値観に忠実に演じてください。表面的な回答ではなく、感情・価値観・生活背景を含めた深い本音を口語体で話してください。回答後に「次はどんなことを聞きますか？」と一言添えてインタビューを促進してください。'},
+
+  {id:'grouin',cat:'research',name:'グループ座談会AI',icon:'👥',
+   iconBg:'#DBEAFE',
+   desc:'3〜5名の生活者が参加する座談会をAIが自動進行。異なる意見が一度に集まります。',
+   q:'新しい健康食品サービスについて、率直な感想を聞かせてください',
+   a:'Aさん（38歳・主婦）「続けやすい値段なら考えますが…少し高いかな」Bさん（29歳・会社員）「手軽さが大事。続けやすいのが一番」Cさん（44歳・パート）「夫が健康を気にし始めたので気になっています」',
+   tips:'参加者の属性（年齢・職業・使用経験の有無など）を伝えると、よりリアルな座談会になります。テーマも具体的に伝えるほど鋭い意見が出ます。',
+   starters:['このブランドのイメージについて各自の意見を聞かせてください','今のサービスで「もっとこうだったらいいのに」と思うことは？','購入する際に一番迷うポイントはどこですか？'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のグループインタビュー（フォーカスグループ）AIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIの定性調査手法（フォーカスグループ）に基づき、3〜5名の架空の生活者として対話を展開します。各参加者に名前・年齢・職業・生活状況を設定し、それぞれ異なる意見・感情・反応を持たせてください。ファシリテーターとして議論を整理しつつ、参加者間の意見の対立や共感も自然に表現してください。セッション後は「発見できたインサイトのまとめ」を提示してください。日本語で回答。'},
+
+  /* ── 戦略 ── */
+  {id:'strategy',cat:'strategy',name:'マーケティング戦略AI',icon:'🗺',
+   iconBg:'#FDF0ED',
+   desc:'調査結果をもとに、「誰に・何を・どうやって」という戦略の骨格をわかりやすく整理します。',
+   q:'売上が伸び悩んでいる。調査結果から戦略の方向性を考えてほしい',
+   a:'まず「なぜ伸び悩んでいるか」を3つの仮説で整理します。①顧客は知っているが選ばれていない（差別化の問題）②そもそも認知されていない（認知の問題）③一度買ったが続かない（満足度の問題）。調査データを見ると…',
+   tips:'DIの資料では「勘と経験」から「データに基づく意思決定」への転換が重要とされています。まず現状の課題タイプ（新規事業・成長鈍化・ブランド・Web改善）を一緒に特定しましょう。',
+   starters:['売上が伸び悩んでいる原因を一緒に整理してほしい','競合との差別化戦略を考えてほしい','新規事業の市場可能性を評価してほしい'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のマーケティング戦略プランナーAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIの調査フレームワークと課題別アプローチ（新規事業開発・成長鈍化・ブランド戦略・Web改善の4パターン）に基づいて戦略を提案します。まず顧客の課題タイプを特定し、それに合った調査活用法と戦略の方向性を提示してください。企業規模（大企業・中小企業・スタートアップ）やBtoB/BtoCの違いも考慮してください。期待効果は短期（CV率10〜30%向上）・中期（売上20〜40%向上・ROI20〜50%改善）・長期（市場シェア拡大）の時系列で提示してください。専門用語は使わず、「で、具体的に何をするか」まで落とし込んでください。'},
+
+  {id:'product',cat:'strategy',name:'商品企画AI',icon:'📦',
+   iconBg:'#FEF3C7',
+   desc:'調査から見えた生活者の本音をもとに、「誰に・何を・なぜ」という商品コンセプトを設計します。',
+   q:'調査で出てきた「楽したいけど罪悪感を持ちたくない」というニーズで商品を考えて',
+   a:'そのインサイトから3案提案します。A案「見た目は手作り感、実は簡単キット」B案「栄養士監修の手抜き弁当ミール」C案「罪悪感ゼロを謳った冷凍食品ライン」。最も刺さるのはA案で、理由は…',
+   tips:'DIの手法では「潜在ニーズの発掘→市場規模の把握→ペルソナ設計→競合分析→差別化ポイント特定」の順で進めます。インサイト（本音）を先に教えてください。',
+   starters:['調査で出てきたインサイトからコンセプトを考えてほしい','このターゲット層が本当に求めているものを整理してほしい','競合商品と差別化できるポイントを探してほしい'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）の商品プランナーAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIの調査ナレッジ（潜在ニーズの発掘・ペルソナ設計・競合分析）に基づいてコンセプトを設計します。「誰に（ターゲット）・何を（便益）・なぜ選ぶか（RTB）」の構造で複数案（A/B/C案）を比較形式で提示してください。各案には「調査データからの根拠」を添えてください。新規事業開発の顧客課題（市場ニーズ不明確・ターゲット像曖昧・競合状況不明）を解決する視点を持ってください。専門用語は使わず平易な日本語で。'},
+
+  {id:'journey',cat:'strategy',name:'お客様の行動マップAI',icon:'🗺️',
+   iconBg:'#E0F7FA',
+   desc:'お客様が商品を知ってから買うまで、そして買った後の行動と気持ちを整理します。',
+   q:'健康食品を購入するまでのお客様の行動を整理してほしい',
+   a:'【認知】SNS広告で目にする→流してしまう【興味】体調不良がきっかけで検索【検討】「本当に効くの？」と比較→口コミサイト確認【購入】試供品があれば後押しに【継続/離脱】1〜2週間で効果を感じなければ離脱。離脱の最大の壁は「継続モチベーション」です。',
+   tips:'DIでは「Web解析で把握した行動データ」と「インタビューで得た心理データ」を組み合わせてジャーニーマップを作ります。Webのデータはありますか？',
+   starters:['購入までのお客様の行動と気持ちを整理してほしい','どの段階で離脱しているか分析してほしい','各フェーズで効果的な施策を一緒に考えたい'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のカスタマージャーニープランナーAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIのアプローチ方法（Web解析×市場調査の統合）に基づいてジャーニーマップを作成します。認知→比較検討→購入→共有→再購入の各フェーズで「感情・思考・行動・タッチポイント・阻害要因・施策アイデア」を整理してください。Web解析データ（行動の「何が」）と市場調査データ（心理の「なぜ」）の両方の視点を持ち、どちらのデータが不足しているかも指摘してください。オムニチャネル（オンライン・オフライン統合）の視点も加えてください。'},
+
+  /* ── クリエイティブ ── */
+  {id:'brainstorm',cat:'creative',name:'アイデア出しAI',icon:'💡',
+   iconBg:'#FFFDE7',
+   desc:'調査から見えた課題や機会を起点に、視野を広げるアイデアをたくさん出します。',
+   q:'「競合との差別化が不足している」という課題を解決するアイデアをたくさん出してほしい',
+   a:'①他社が絶対やらない「弱点を正直に言う」広告 ②競合の悪口を言わず「うちだけの体験」を作る ③顧客が主役になれるUGCキャンペーン ④業界の常識を壊す価格設定 ⑤意外な業種とのコラボ…まだまだあります！',
+   tips:'DIの「機会発見」の観点では「見えていない可能性」を発見するためのブレストが重要です。まず発散（量を出す）→後で収束（絞る）の順で進めましょう。',
+   starters:['○○という課題を解決するアイデアをとにかくたくさん出してほしい','「常識を壊す」視点でアイデアを出してほしい','競合がやっていないことを考えてほしい'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のブレインストーミングAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIの「機会発見」の思想（潜在ニーズの発見・外部の視点を取り入れた革新的発想）に基づいてアイデアを生成します。まず批判なしの発散フェーズで量と多様性を重視してください。SCAMPER・逆転の発想・アナロジーなどの手法を活用し、DIが提案すべき顧客の6タイプ（売上停滞・新商品開発・広告ROI・クレーム増・シェア低下・DX）の視点も盛り込んでください。「絞り込んで」と言われたら優先度付けと根拠を提示してください。'},
+
+  {id:'activation',cat:'creative',name:'施策プランニングAI',icon:'🚀',
+   iconBg:'#FCE7F3',
+   desc:'短期・中期・長期のフェーズ別に、最も効果的な施策を具体的に提案します。',
+   q:'認知を広げるための施策を、予算別で提案してほしい',
+   a:'短期（〜3ヶ月）なら費用対効果が高いのはSNS広告＋インフルエンサーです。CV率10〜30%向上が見込めます。中期（3〜12ヶ月）ではコンテンツSEOとリターゲティング広告の組み合わせが売上20〜40%向上につながります。長期では…',
+   tips:'DIでは短期（1〜3ヶ月）・中期（3〜12ヶ月）・長期（1年以上）で期待効果が異なります。まず「いつまでに何を達成したいか」を教えてください。',
+   starters:['認知を広げるための施策を期間別で提案してほしい','購入につなげるための施策を考えてほしい','各分野（広告・SEO・制作）の連携施策を提案してほしい'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のアクティベーションプランナーAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIの短期（1〜3ヶ月・CV率10〜30%向上）・中期（3〜12ヶ月・売上20〜40%向上・ROI20〜50%改善）・長期（1年以上・市場シェア拡大）のフレームワークで施策を提案します。広告・クリエイティブ・SEO・サイト制作のワンストップ連携メリットを活かした統合施策を設計してください。各施策には「目的」「具体的な内容」「期待するKPI」「DIとして支援できる範囲」を明記してください。専門用語は使わず平易な日本語で。'},
+
+  {id:'copy',cat:'creative',name:'コピーライティングAI',icon:'✍️',
+   iconBg:'#F5F3FF',
+   desc:'調査で見えたターゲットの本音（インサイト）をもとに、心に響くコピーを作ります。',
+   q:'「楽をしたいけど後ろめたい」という主婦層向けのキャッチコピーを作ってほしい',
+   a:'①「手抜きじゃない。賢い選択だ。」②「今日くらい、いいじゃない。」③「完璧なお母さんより、ご機嫌なお母さん。」④「15分で、ちゃんとした夕食。」⑤「頑張らないって、決めた。」各案の狙ったインサイトは…',
+   tips:'DIではブランドイメージ調査・メッセージ浸透度測定・A/Bテストを組み合わせてコピーを最適化します。まず「ターゲットの一番のインサイト（本音）」を教えてください。',
+   starters:['調査から見えたインサイトをコピーに落とし込んでほしい','このブランドの一番の強みを伝えるコピーを作ってほしい','ターゲット別に訴求の違うコピーを出してほしい'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のコピーライターAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIのブランドイメージ調査・ポジショニング分析・メッセージ浸透度測定の知見を活かしてコピーを生成します。調査データやインサイトが投入されている場合は必ずそれを起点にしてください。複数の方向性（感情訴求・機能訴求・共感型・挑戦型など）で最低5案出し、各案に「狙っているインサイト」「どんな場面で使うか」を添えてください。ターゲットのミスマッチを解消する視点（ブランドイメージ調査の知見）も加味してください。'},
+
+  /* ── メディア ── */
+  {id:'media',cat:'media',name:'広告メディアプランAI',icon:'📺',
+   iconBg:'#EEF2FF',
+   desc:'ターゲットと調査データをもとに、テレビ・雑誌・屋外広告などの最適な配分を提案します。',
+   q:'調査で30代女性のターゲットが見えた。広告メディアの配分を考えてほしい',
+   a:'DIの調査結果を踏まえると、30代女性はSNS接触が高く（特にInstagram・YouTube）、購買前に口コミを確認する傾向があります。予算配分の推奨は①SNS広告50%②動画プリロール30%③サンプリング20%。ROI改善20〜50%が見込めます。',
+   tips:'調査結果（ターゲットのメディア接触状況）が投入されているとより精度が上がります。DIでは調査→メディアプラン→クリエイティブ→効果測定のワンストップで対応します。',
+   starters:['調査結果から最適なメディア配分を考えてほしい','認知を上げるための媒体の優先順位を教えてほしい','予算が限られている場合、どこに絞ればいいか'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のメディアプランナーAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIの調査ナレッジ（ターゲットのメディア接触データ・行動分析）に基づいて最適なメディアミックスを提案します。調査データが投入されている場合は必ずそれを根拠にしてください。予算配分は「ROIの高い広告チャネルやタイミングの特定」という観点で根拠を示してください。期待効果はDIの数値（短期CV率10〜30%向上・中期ROI20〜50%改善）を参照してください。DIのワンストップ連携（調査→メディア→クリエイティブ→効果測定）の視点も加えてください。専門用語（GRP等）は使わず平易な日本語で。'},
+
+  {id:'digital',cat:'media',name:'SNS・デジタル広告AI',icon:'📱',
+   iconBg:'#E0F7FA',
+   desc:'調査で把握したターゲットのSNS行動をもとに、デジタル広告の使い方を提案します。',
+   q:'調査でターゲットのSNS利用傾向が分かった。どんな広告が有効か教えてほしい',
+   a:'調査データから導くと、このターゲットはInstagramのリール動画経由での発見が多く、購買前にYouTubeのレビューを確認する傾向があります。推奨は①リール広告（認知）②YouTubeプレロール（検討促進）③検索リターゲティング（購買後押し）の3段階です。',
+   tips:'DIではソーシャルリスニング（SNSでの生の声分析）と市場調査を組み合わせてデジタル戦略を設計します。A/Bテスト設計と継続的な改善サイクルも一緒に考えます。',
+   starters:['ターゲットのSNS行動から最適な広告を提案してほしい','Instagram・TikTok・Xで何が効果的か教えてほしい','A/Bテストで何を検証すればいいか相談したい'],
+   prompt:'あなたは株式会社デジタルアイデンティティ（DI）のデジタルメディアプランナーAIです。以下の知識をベースに回答してください。\n\n' + DI_KNOWLEDGE + '\n\n【あなたの役割と動作ルール】\nDIのデジタル対応力（ソーシャルリスニング・テキストマイニング・オムニチャネル統合分析）に基づいてデジタル施策を提案します。調査データ（ターゲットのWeb行動・SNS接触状況）が投入されている場合は必ずそれを根拠にしてください。Web解析と市場調査の2アプローチ（Web解析→市場調査、または市場調査→Web解析）の視点でデジタル施策を設計し、A/Bテスト計画と継続的改善サイクルまで提案してください。専門用語（CTR/CVR/CPA等）は使わず平易な日本語で具体的に説明してください。'}
+];
+
+var HINTS = [
+  '新商品のコンセプトとキャッチコピーを作りたい',
+  '売上停滞の原因を調査して改善策を提案してほしい',
+  '競合との差別化戦略を一から考えたい',
+  'ターゲットへの広告プランを組みたい',
+  'ブランドのポジショニングを再設計したい'
+];
+
+var DI_CTX = [
+  'DIは株式会社デジタルアイデンティティ（2009年設立・400名・東京/福岡/北海道）。マーケティングリサーチから戦略・クリエイティブ・広告・SEO・サイト制作・MA/DX支援までワンストップ。',
+  '調査実績業種：生命保険（ソニー生命・アクサ生命・日本損保協会）/ 資産運用（三井住友DS）/ 不動産（大京 THE LIONS・一建設リースバック）/ 中古車（アップルオートネットワーク）/ SaaS（Nimway）/ フォトスタジオ（らかんスタジオ）/ BtoB製造業（住友金属鉱山）。',
+  '調査手法：Webアンケート・デプスインタビュー・グループインタビュー・覆面調査・面談時アンケート・KW調査・GA分析・MAと連動した調査票設計。',
+  '期待効果：CV率10〜30%向上・売上20〜40%向上・ROI改善20〜50%・PRで広告換算3,179万円。調査から施策実行まで一気通貫が最大の差別化。'
+].join(' ');
+
+/* ============================================================
+   STATE
+============================================================ */
+var S = {
+  mode: 'agents',
+  apiKey: sessionStorage.getItem('di_ap_key') || '',
+  ctx: {survey:'', persona:'', brief:''},
+  agent: null,
+  agentMsgs: [],
+  agentLoading: false,
+  tasks: [],
+  running: false,
+  streamBuffer: ''
+};
+
+/* ============================================================
+   INIT
+============================================================ */
+
+
+/* ============================================================
+   AGENT HARNESS — Lifecycle Hooks
+   onAgentStart / onTurnEnd / onPlanVerify / onSessionEnd
+============================================================ */
+
+var HARNESS = {
+  enabled: true,
+  lastCheck: null,
+
+  // ── フック定義 ──────────────────────────────────────
+  onAgentStart: function(agentId, targetDesc){
+    // すでにbuildContextで注入済み。フック追加可能。
+    console.log('[Harness] onAgentStart:', agentId);
+  },
+
+  onTurnEnd: function(agentId, userMsg, aiResponse){
+    if(!HARNESS.enabled) return;
+    if(!S.apiKey) return;
+    // 非同期品質チェック（UIをブロックしない）
+    HARNESS.showChecking();
+    HARNESS.runQualityCheck(agentId, userMsg, aiResponse);
+  },
+
+  onSessionEnd: function(){
+    // Markdownエクスポート（既存機能に統合済み）
+  },
+
+  // ── 品質チェック実行 ─────────────────────────────────
+  runQualityCheck: function(agentId, userMsg, aiResponse){
+    var agent = AGENTS.find(function(a){ return a.id === agentId; }) || {};
+    var targetDesc = (S.ctx && S.ctx._funnelTarget) ? S.ctx._funnelTarget : '';
+
+    var hasTarget = !!targetDesc;
+    var targetRule = hasTarget
+      ? '④ ターゲット整合性（「' + targetDesc.substring(0,30) + '」に沿っているか）'
+      : '④ ターゲット整合性（ターゲット未設定のためスキップ → ok:true で固定）';
+
+    var checkPrompt = 'あなたはDIのQCエンジンです。以下のAI出力をDIの品質基準で厳密に評価してください。\n\n'
+      + '【エージェント種別】' + (agent.name || agentId) + '\n'
+      + (hasTarget ? '【ターゲット設定】' + targetDesc.substring(0,80) + '\n' : '')
+      + '【ユーザー入力】' + userMsg.substring(0,200) + '\n\n'
+      + '【AI出力（先頭1200字）】\n' + aiResponse.substring(0, 1200) + '\n\n'
+      + '【DI品質チェック5項目】\n'
+      + '① 仮説ベース：根拠・Why・データが明示されているか\n'
+      + '② 具体性：数値・固有名詞・具体例が1つ以上あるか\n'
+      + '③ アクション可能性：「次のアクション」が1つ以上明記されているか\n'
+      + targetRule + '\n'
+      + '⑤ DIナレッジ活用：DI独自の調査手法・事例・哲学が出力に反映されているか\n\n'
+      + '【出力ルール（厳守）】\n'
+      + '- JSON形式のみ。前後の文章・マークダウン不要\n'
+      + '- comment は事実を断定形で（例: 根拠の明示あり / 数値なし / 次アクション未記載）\n'
+      + '- 「〜かな」「〜でしょうか」「〜と思われます」禁止。断定のみ\n'
+      + '- suggest は「〜を追加してください」形式で具体的に\n'
+      + '- overall は20字以内の総評\n\n'
+      + '{"score":0-100,"level":"good|warn|bad","checks":[{"icon":"✅|⚠️|❌","label":"①仮説ベース","ok":true/false,"comment":"断定12字以内","suggest":"具体的改善ヒント"},{"label":"②具体性",...},{"label":"③アクション",...},{"label":"④ターゲット",...},{"label":"⑤DIナレッジ",...}],"overall":"総評20字以内"}';
+
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': S.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: checkPrompt }]
+      })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.error){ HARNESS.showError(d.error.message); return; }
+      var raw = d.content && d.content[0] ? d.content[0].text : '';
+      // JSONフェンス除去
+      raw = raw.replace(/```json\n?|```/g, '').trim();
+      try{
+        var result = JSON.parse(raw);
+        HARNESS.lastCheck = result;
+        HARNESS.renderPanel(result);
+      } catch(e){
+        HARNESS.showError('解析エラー');
+      }
+    })
+    .catch(function(e){ HARNESS.showError(e.message); });
+  },
+
+  // ── UI描画 ───────────────────────────────────────────
+  showChecking: function(){
+    var panel = document.getElementById('hook-panel');
+    var content = document.getElementById('hook-content');
+    var badge = document.getElementById('hook-score-badge');
+    if(!panel) return;
+    panel.className = 'open';
+    document.getElementById('hook-toggle-icon').textContent = '▼';
+    badge.innerHTML = '<div class="hook-spin"></div>';
+    content.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0;">品質チェック中…</div>';
+  },
+
+  renderPanel: function(result){
+    var panel = document.getElementById('hook-panel');
+    var content = document.getElementById('hook-content');
+    var badge = document.getElementById('hook-score-badge');
+    if(!panel || !content) return;
+
+    var score = result.score || 0;
+    var level = result.level || (score >= 75 ? 'good' : score >= 50 ? 'warn' : 'bad');
+    var label = level === 'good' ? '良好' : level === 'warn' ? '要改善' : '要修正';
+
+    badge.innerHTML = '<span class="hook-score ' + level + '">' + score + '点 ' + label + '</span>';
+
+    var html = '';
+    if(result.overall){
+      html += '<div style="font-size:12px;color:var(--text);padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px;line-height:1.55;">'
+        + result.overall + '</div>';
+    }
+    if(result.checks && result.checks.length){
+      result.checks.forEach(function(ch){
+        html += '<div class="hook-item">'
+          + '<span class="hook-icon">' + (ch.icon || (ch.ok ? '✅' : '⚠️')) + '</span>'
+          + '<div class="hook-text">'
+          + '<strong>' + esc(ch.label || '') + '</strong>　' + esc(ch.comment || '')
+          + (ch.suggest && !ch.ok
+              ? '<br><span class="hook-suggest" onclick="HARNESS.applyHint(\'' + esc(ch.suggest).replace(/'/g, '&#39;') + '\')">'
+              + '↗ ' + esc(ch.suggest) + '</span>'
+              : '')
+          + '</div></div>';
+      });
+    }
+    content.innerHTML = html;
+  },
+
+  showError: function(msg){
+    var content = document.getElementById('hook-content');
+    var badge = document.getElementById('hook-score-badge');
+    if(badge) badge.innerHTML = '';
+    if(content) content.innerHTML = '<div style="font-size:11px;color:var(--muted);">チェック失敗: ' + esc(msg) + '</div>';
+  },
+
+  // ── 改善ヒントをチャット入力欄に挿入 ─────────────────
+  applyHint: function(hint){
+    var ci = document.getElementById('ci');
+    if(!ci) return;
+    ci.value = hint;
+    ci.focus();
+    ci.style.height = 'auto';
+    ci.style.height = Math.min(ci.scrollHeight, 120) + 'px';
+  }
+};
+
+
+/* ============================================================
+   HARNESS CHECKLIST — 終了条件の外部化 (Priority B)
+   エージェント種別に応じた進行チェックリストを提供
+============================================================ */
+
+var CL_DEFS = {
+  depth: [
+    '調査目的・背景が対話内で明確になっている',
+    '対象者の日常・感情・価値観が引き出されている',
+    '表面的な回答でなく「なぜ」が深掘りされている',
+    '競合・代替手段への言及がある',
+    'インサイト（行動変容の鍵）が1つ以上出ている',
+    '次の調査ステップへの示唆がある'
+  ],
+  grouin: [
+    '複数の参加者属性が設定・区別されている',
+    '参加者間の意見の違いが表現されている',
+    '共通点・相違点が整理されている',
+    'グループダイナミクスが再現されている',
+    'セッションサマリーが出力されている'
+  ],
+  strategy: [
+    'STP（セグメント・ターゲット・ポジション）が定義されている',
+    '現状のAS-IS課題が明確になっている',
+    '競合との差別化ポイントが言語化されている',
+    '短期・中長期の施策ロードマップがある',
+    '期待効果・KPIが数値で示されている',
+    'DI調査データとの接続がある'
+  ],
+  product: [
+    'Who（ターゲット）が具体的に定義されている',
+    'What（コンセプト）が一文で言える',
+    'Why（RTB・根拠）が3つ以上ある',
+    '競合との差別化が明示されている',
+    '複数案（A/B/C）が比較されている'
+  ],
+  journey: [
+    '認知〜推奨の全フェーズが網羅されている',
+    '各フェーズの感情・行動が記述されている',
+    'タッチポイントが具体的に列挙されている',
+    '阻害要因（離脱要因）が特定されている',
+    '各フェーズの施策アイデアがある'
+  ],
+  brainstorm: [
+    '10案以上のアイデアが出ている',
+    '複数の切り口（訴求軸・媒体・フォーマット）がある',
+    'ターゲット条件と紐づいている',
+    '実現可能性の評価がある'
+  ],
+  activation: [
+    '施策の目的・KPIが明確になっている',
+    '実施タイムラインがある',
+    '予算・リソース感が含まれている',
+    '効果測定方法が定義されている',
+    '優先順位が付けられている'
+  ],
+  copy: [
+    'ターゲットへの言葉として自然か確認した',
+    '複数のコピー案（3案以上）がある',
+    '訴求軸が案ごとに異なる',
+    'トーン&マナーが統一されている',
+    'A/Bテスト用の組み合わせ案がある'
+  ],
+  digital: [
+    '配信面・プレイスメントが特定されている',
+    'ターゲティング条件が設定されている',
+    'クリエイティブ形式が選定されている',
+    '予算・入札方針が含まれている',
+    '効果測定・PDCAの設計がある'
+  ],
+  media: [
+    'ターゲットの接触媒体が分析されている',
+    'メディアミックスの全体像がある',
+    '各媒体の役割が定義されている',
+    '到達率・頻度の想定がある',
+    '予算配分の方針がある'
+  ]
+};
+
+var CL_STATE = {};  // agentId → boolean[]
+
+function initChecklist(agentId){
+  var items = CL_DEFS[agentId] || CL_DEFS.strategy;
+  if(!CL_STATE[agentId]) CL_STATE[agentId] = items.map(function(){ return false; });
+  renderChecklist(agentId);
+  // チェックリストパネルを開く
+  var panel = document.getElementById('checklist-panel');
+  if(panel){ panel.className = 'open'; }
+  var icon = document.getElementById('cl-toggle-icon');
+  if(icon) icon.textContent = '▼';
+}
+
+function renderChecklist(agentId){
+  var items = CL_DEFS[agentId] || CL_DEFS.strategy;
+  var state = CL_STATE[agentId] || items.map(function(){ return false; });
+  var done = state.filter(Boolean).length;
+  var total = items.length;
+
+  // progress badge
+  var prog = document.getElementById('cl-progress');
+  if(prog){
+    prog.style.display = 'inline';
+    prog.textContent = done + ' / ' + total;
+    prog.style.background = done === total ? 'rgba(10,143,92,.12)' : 'rgba(194,123,0,.10)';
+    prog.style.color = done === total ? 'var(--green)' : 'var(--amber)';
+  }
+
+  var html = '';
+  items.forEach(function(item, i){
+    var checked = state[i];
+    html += '<div class="cl-item">'
+      + '<input type="checkbox" class="cl-cb" id="cl-' + i + '" '
+      + (checked ? 'checked' : '')
+      + ' onchange="toggleCLItem(\'' + agentId + '\',' + i + ',this.checked)">'
+      + '<label for="cl-' + i + '" class="cl-text' + (checked ? ' done' : '') + '">'
+      + esc(item)
+      + '</label></div>';
+  });
+  var content = document.getElementById('cl-content');
+  if(content) content.innerHTML = html;
+}
+
+function toggleCLItem(agentId, idx, val){
+  if(!CL_STATE[agentId]) CL_STATE[agentId] = (CL_DEFS[agentId]||[]).map(function(){return false;});
+  CL_STATE[agentId][idx] = val;
+  renderChecklist(agentId);
+}
+
+function toggleChecklistPanel(){
+  var panel = document.getElementById('checklist-panel');
+  var icon = document.getElementById('cl-toggle-icon');
+  if(!panel) return;
+  var isOpen = panel.classList.contains('open');
+  panel.className = isOpen ? 'closed' : 'open';
+  if(icon) icon.textContent = isOpen ? '▲' : '▼';
+}
+
+function toggleHookPanel(){
+  var panel = document.getElementById('hook-panel');
+  var icon = document.getElementById('hook-toggle-icon');
+  if(!panel) return;
+  var isOpen = panel.classList.contains('open');
+  panel.className = isOpen ? 'closed' : 'open';
+  if(icon) icon.textContent = isOpen ? '▲' : '▼';
+}
+
+
+function renderAgentCards(){
+  var cats = ['research','strategy','creative','media'];
+  var html = '';
+  cats.forEach(function(cat){
+    var agents = AGENTS.filter(function(a){ return a.cat===cat; });
+    var cc = CAT_COLORS[cat] || {bar:'#666',light:'#eee',color:'#666',tag:'rgba(0,0,0,.08)'};
+    html += '<div class="cat-section">';
+    html += '<div class="cat-header"><div class="cat-bar" style="background:'+cc.bar+'"></div>';
+    html += '<span class="cat-title">'+getCatLabel(cat)+'</span>';
+    html += '<span class="cat-count"> // '+agents.length+'</span></div>';
+    html += '<div class="cards-grid">';
+    agents.forEach(function(a){
+      html += '<div class="acard" data-agentid="'+escAttr(a.id)+'">';
+      html += '<div class="acard-top">';
+      html += '<div class="acard-icon" style="background:'+(a.iconBg||cc.light)+'">'+a.icon+'</div>';
+      html += '<div><div class="acard-name">'+a.name+'</div>';
+      html += '<span class="acard-tag" style="background:'+cc.tag+';color:'+cc.color+'">'+getCatLabel(cat)+'</span></div></div>';
+      html += '<div class="acard-desc">'+a.desc+'</div>';
+      if(a.starters && a.starters.length){
+        html += '<div class="acard-starters">';
+        a.starters.slice(0,2).forEach(function(sv){
+          html += '<button class="starter-btn" data-agentid="'+escAttr(a.id)+'" data-v="'+escAttr(sv)+'">'+esc(sv)+'</button>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  var container = document.getElementById('cards-container');
+  if(!container) return;
+  container.innerHTML = html;
+  container.addEventListener('click', function(e){
+    var btn = e.target.closest('.starter-btn');
+    if(btn){ e.stopPropagation(); useStarter(btn.getAttribute('data-agentid'), btn.getAttribute('data-v')); return; }
+    var card = e.target.closest('.acard');
+    if(card){ var id=card.getAttribute('data-agentid'); if(id) openAgent(id); }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  loadTasksFromStorage();
+  updateApiStatus();
+  updateCtxStatus();
+  renderAgentNav();
+  initTargetFunnel();
+  fLoadSaved();
+  renderHints();
+  // ハーネスがデフォルト
+  setMode('orch');
+  if(S.tasks.length){ renderHistory(); }
+
+  var ci = document.getElementById('ci');
+  ci.addEventListener('keydown', function(e){
+    if(e.key==='Enter' && (e.metaKey||e.ctrlKey)){ e.preventDefault(); sendMsg(); }
+  });
+  ci.addEventListener('input', function(){
+    this.style.height='auto';
+    this.style.height=Math.min(this.scrollHeight,120)+'px';
+  });
+
+  var ti = document.getElementById('task-input');
+  ti.addEventListener('keydown', function(e){
+    if(e.key==='Enter' && (e.metaKey||e.ctrlKey)){ e.preventDefault(); runOrchestrator(); }
+  });
+  ti.addEventListener('input', function(){
+    this.style.height='auto';
+    this.style.height=Math.min(this.scrollHeight,130)+'px';
+  });
+});
+
+/* ============================================================
+   MODE SWITCHING
+============================================================ */
+var NAV_CATS = [
+  {id:'research',icon:'🔍',label:'生活者を知る'},
+  {id:'strategy',icon:'🗺',label:'戦略を作る'},
+  {id:'creative',icon:'✏',label:'アイデアを出す'},
+  {id:'media',   icon:'📡',label:'広告を考える'}
+];
+
+function setMode(mode){
+  S.mode = mode;
+  document.getElementById('tab-agents').classList.toggle('active', mode==='agents');
+  document.getElementById('tab-orch').classList.toggle('active', mode==='orch');
+
+  var laContent = document.getElementById('ln-agents-content');
+  var loContent = document.getElementById('ln-orch-content');
+
+  if(mode==='agents'){
+    laContent.style.display = 'block';
+    loContent.style.display = 'none';
+    var hasCond = FS.age.length||FS.life.length||FS.region.length||FS.phases.length||FS.product;
+    if(!hasCond) showTargetView();
+    else showAgentsView();
+  } else {
+    laContent.style.display = 'none';
+    loContent.style.display = 'flex';
+    loContent.style.flexDirection = 'column';
+    loContent.style.flex = '1';
+    loContent.style.overflow = 'hidden';
+    showOrchView();
+  }
+}
+
+function showAgentsView(){
+  document.getElementById('view-target').style.display = 'none';
+  var va = document.getElementById('view-agents');
+  va.style.display = 'flex';
+  document.getElementById('view-chat').style.display   = 'none';
+  document.getElementById('view-orch').style.display   = 'none';
+  // ターゲットバッジを更新
+  var badge = document.getElementById('target-badge');
+  var badgeText = document.getElementById('target-badge-text');
+  var cond = fBuildCond();
+  if(badge && badgeText){
+    var hasCond = FS.age.length||FS.life.length||FS.region.length||FS.phases.length||FS.product;
+    badge.style.display = hasCond ? 'flex' : 'none';
+    if(hasCond) badgeText.textContent = cond + (FS.phases.length ? ' ・' + FS.phases.map(function(p){var a=FS_AIDMA.find(function(x){return x.p===p;});return a?a.label:'';}).join('・') : '');
+  }
+  renderAgentCards();
+}
+
+function showTargetView(){
+  document.getElementById('view-target').style.display = 'flex';
+  document.getElementById('view-agents').style.display = 'none';
+  document.getElementById('view-chat').style.display   = 'none';
+  document.getElementById('view-orch').style.display   = 'none';
+}
+
+function showOrchView(){
+  document.getElementById('view-target').style.display = 'none';
+  document.getElementById('view-agents').style.display = 'none';
+  document.getElementById('view-chat').style.display   = 'none';
+  document.getElementById('view-orch').style.display   = 'flex';
+}
+
+function showChatView(){
+  document.getElementById('view-target').style.display = 'none';
+  document.getElementById('view-agents').style.display = 'none';
+  document.getElementById('view-chat').style.display   = 'flex';
+  document.getElementById('view-orch').style.display   = 'none';
+}
+
+function toggleMenu(){
+  document.getElementById('left').classList.toggle('open');
+}
+document.addEventListener('click', function(e){
+  var left = document.getElementById('left');
+  if(!left.classList.contains('open')) return;
+  if(!left.contains(e.target) && e.target.id !== 'menu-btn') left.classList.remove('open');
+});
+
+/* ============================================================
+   AGENT CARDS + NAV
+============================================================ */
+function getCatLabel(cat){return {research:'生活者リサーチ',strategy:'戦略・企画',creative:'クリエイティブ',media:'メディア'}[cat];}
+
+/* AGENT OPEN */
+
+
+var CAT_COLORS = {
+  research:{bar:'#0A6E6E',light:'#E0F2F1',tag:'rgba(10,110,110,.15)',color:'#0A6E6E'},
+  strategy:{bar:'#C8321A',light:'#FDF0ED',tag:'rgba(200,50,26,.12)',color:'#C8321A'},
+  creative:{bar:'#B45309',light:'#FFFBEB',tag:'rgba(180,83,9,.12)',color:'#B45309'},
+  media:   {bar:'#4338CA',light:'#EEF2FF',tag:'rgba(67,56,202,.12)',color:'#4338CA'}
+};
+
+function renderAgentNav(){
+  var html = '';
+  NAV_CATS.forEach(function(cat){
+    var agents = AGENTS.filter(function(a){ return a.cat===cat.id; });
+    html += '<div class="ln-cat-wrap">';
+    html += '<button class="ln-item" data-cat="'+cat.id+'">';
+    html += '<span class="ln-icon">'+cat.icon+'</span>';
+    html += '<span style="flex:1;">'+cat.label+'</span>';
+    html += '<span class="ln-arrow" id="arrow-'+cat.id+'">›</span>';
+    html += '</button>';
+    html += '<div class="ln-sub" id="sub-'+cat.id+'">';
+    agents.forEach(function(a){
+      html += '<button class="ln-item ln-sub-item" data-agent="'+a.id+'">';
+      html += '<span class="ln-icon" style="font-size:12px;">'+a.icon+'</span>';
+      html += '<span>'+a.name+'</span>';
+      html += '</button>';
+    });
+    html += '</div></div>';
+  });
+  var container = document.getElementById('nav-agents-list');
+  container.innerHTML = html;
+  container.querySelectorAll('[data-cat]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var catId = btn.getAttribute('data-cat');
+      var sub = document.getElementById('sub-'+catId);
+      var arrow = document.getElementById('arrow-'+catId);
+      var isOpen = sub.classList.contains('open');
+      NAV_CATS.forEach(function(c){
+        document.getElementById('sub-'+c.id).classList.remove('open');
+        document.getElementById('arrow-'+c.id).classList.remove('open');
+      });
+      if(!isOpen){ sub.classList.add('open'); arrow.classList.add('open'); }
+    });
+  });
+  container.querySelectorAll('[data-agent]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      openAgent(btn.getAttribute('data-agent'));
+    });
+  });
+}
+
+
+function useStarter(agentId, text){
+  openAgent(agentId);
+  setTimeout(function(){
+    var ci = document.getElementById('ci');
+    if(ci){ ci.value = text; ci.dispatchEvent(new Event('input')); sendMsg(); }
+  }, 100);
+}
+
+function openAgent(id){
+  var a = AGENTS.find(function(x){ return x.id===id; });
+  if(!a) return;
+  S.agent = a;
+  S.agentMsgs = [];
+  S.mode = 'agents';
+  document.getElementById('tab-agents').classList.add('active');
+  document.getElementById('tab-orch').classList.remove('active');
+
+  var cc = CAT_COLORS[a.cat] || {bar:'#666',light:'#eee',color:'#666'};
+  document.getElementById('chat-icon').style.background = a.iconBg || cc.light;
+  document.getElementById('chat-icon').textContent = a.icon;
+  document.getElementById('chat-name').textContent = a.name;
+  document.getElementById('chat-cat').textContent = getCatLabel(a.cat);
+
+  document.getElementById('ln-agents-content').style.display = 'block';
+  document.getElementById('ln-orch-content').style.display = 'none';
+
+  // ウェルカムメッセージ
+  var ph = S.ctx._funnelTarget
+    ? 'ターゲット設定：\n' + S.ctx._funnelTarget + '\n\nこの条件でサポートします。\n\n調査の目的（インタビュー・コピー・戦略立案など）を教えてください。'
+    : (a.tips
+        ? a.tips + '\n\nまず「' + (a.q || '何でも話しかけてください') + '」のような形で質問してみてください。'
+        : '何でもお気軽にお話しください。');
+  S.agentMsgs = [{role:'assistant', content:ph}];
+  // ハーネス: onAgentStart
+  HARNESS.onAgentStart(id, fBuildTargetDesc ? fBuildTargetDesc() : '');
+  // チェックリスト初期化
+  CL_STATE[id] = null;
+  initChecklist(id);
+  showChatView();
+  renderMsgs();
+  setTimeout(function(){ var ci=document.getElementById('ci'); if(ci)ci.focus(); }, 50);
+}
+
+/* ============================================================
+   AGENT CHAT
+============================================================ */
+function renderMsgs(){
+  var el = document.getElementById('msgs');
+  if(!el) return;
+  var html = S.agentMsgs.map(function(m){
+    var cls = m.role==='user' ? 'msg-user' : 'msg-ai';
+    return '<div class="'+cls+'"><div class="msg-bubble">'+esc(m.content)+'</div></div>';
+  }).join('');
+  if(S.agentLoading){
+    html += '<div class="msg-ai"><div class="msg-thinking"><span class="dots"><span></span><span></span><span></span></span> 生成中…</div></div>';
+  }
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+
+function sendMsg(){
+  if(!S.agent) return;
+  if(!S.apiKey){ openModal('api-modal'); return; }
+  if(S.agentLoading) return;
+  var ci = document.getElementById('ci');
+  var text = ci.value.trim();
+  if(!text) return;
+  ci.value = ''; ci.style.height = 'auto';
+  S.agentMsgs.push({role:'user', content:text});
+  S.agentLoading = true;
+  document.getElementById('send-btn').disabled = true;
+  renderMsgs();
+
+  var ctx = buildContext();
+  var sysPrompt = buildAgentPrompt(S.agent.id, ctx);
+  var messages = S.agentMsgs.map(function(m){ return {role:m.role, content:m.content}; });
+
+  var _userMsgForHook = text;
+  callAPI(sysPrompt, messages, 1800, function(r){
+    S.agentLoading = false;
+    document.getElementById('send-btn').disabled = false;
+    if(r.err){
+      S.agentMsgs.push({role:'assistant', content:'エラー: '+r.err});
+    } else {
+      S.agentMsgs.push({role:'assistant', content:r.text});
+      // ライフサイクルフック: onTurnEnd
+      HARNESS.onTurnEnd(S.agent.id, _userMsgForHook, r.text);
+    }
+    renderMsgs();
+  });
+}
+
+/* ============================================================
+   ORCHESTRATOR HINTS
+============================================================ */
+function renderHints(){
+  document.getElementById('hint-chips').innerHTML = HINTS.map(function(h){
+    return '<button class="hint-chip" onclick="useHint(this.textContent)">'+esc(h)+'</button>';
+  }).join('');
+}
+function useHint(t){ document.getElementById('task-input').value=t; }
+
+/* ============================================================
+   CORE ORCHESTRATION + DISPLAY (from orchestrator)
+============================================================ */
+function runOrchestrator(){
+  var input = document.getElementById('task-input').value.trim();
+  if(!input){ alert('課題・目標を入力してください'); return; }
+  if(!S.apiKey){ openModal('api-modal'); return; }
+  if(S.running) return;
+  S.running = true;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('orch-empty').style.display = 'none';
+  var hl = document.getElementById('harness-landing');
+  if(hl) hl.style.display = 'none';
+  var taskId = 'task_'+Date.now();
+  var task = {id:taskId, goal:input, status:'planning', plan:null, results:[], ts:new Date()};
+  S.tasks.unshift(task);
+  renderHistory();
+  showTask(task);
+  planTask(task, function(plan){
+    if(!plan){ finishTask(task,'error'); return; }
+    task.plan = plan;
+    task.status = 'running';
+    updateTaskDisplay(task);
+    executeAgents(task, 0, '', function(){
+      synthesize(task, function(){ finishTask(task,'done'); });
+    });
+  });
+}
+/* ── STEP 1: Plan ── */
+function planTask(task, cb){
+  var agentList = Object.keys(AGENTS).map(function(id){
+    return id + ': ' + (AGENTS.find(function(x){return x.id===id;})||{name:id,desc:''}).name + '（' + (AGENTS.find(function(x){return x.id===id;})||{desc:''}).desc + '）';
+  }).join('\n');
+
+  var ctxNote = '';
+  if(S.ctx.survey) ctxNote += '\n調査データ: あり（' + S.ctx.survey.length + '文字）';
+  if(S.ctx.persona) ctxNote += '\nペルソナ: あり';
+  if(S.ctx.brief) ctxNote += '\nブリーフ: あり';
+
+  var sysPrompt = DI_CTX + '\nあなたはDIのオーケストレーターAIです。ユーザーの課題に対して最適なエージェントを2〜4個選び、実行順序と理由をJSONで返してください。\n\n利用可能なエージェント:\n' + agentList + '\n\n返答は必ずJSON形式のみ（説明文なし）:\n{"agents":["agent_id1","agent_id2"],"reason":"なぜこの順番か1〜2文"}';
+
+  var userMsg = 'タスク: ' + task.goal + '\nコンテキスト: ' + (ctxNote || 'なし');
+
+  callAPI(sysPrompt, [{role:'user', content:userMsg}], 500, function(r){
+    if(r.err){ appendLog(task, 'error', 'PLAN ERROR: ' + r.err); cb(null); return; }
+    try{
+      var txt = r.text.replace(/```json|```/g,'').trim();
+      var m = txt.match(/\{[\s\S]*?\}/);
+      var plan = JSON.parse(m ? m[0] : txt);
+      if(!plan.agents || !plan.agents.length) throw new Error('no agents');
+      /* Validate & auto-correct agent IDs */
+      var validIds = Object.keys(AGENTS);
+      var corrected = [];
+      plan.agents.forEach(function(id){
+        if(AGENTS.find(function(x){return x.id===id;})){ corrected.push(id); return; }
+        /* Fuzzy match: find closest valid id */
+        var best = validIds.find(function(v){ return v.indexOf(id) >= 0 || id.indexOf(v) >= 0; });
+        if(best) corrected.push(best);
+      });
+      /* Deduplicate */
+      corrected = corrected.filter(function(id, i){ return corrected.indexOf(id) === i; });
+      if(!corrected.length){
+        /* Fallback: use strategy + copy as default */
+        corrected = ['strategy', 'copy'];
+        plan.reason = (plan.reason || '') + '（フォールバック: IDエラーにより自動選択）';
+      }
+      plan.agents = corrected.slice(0, 4);
+      appendLog(task, 'plan', plan);
+      cb(plan);
+    } catch(e){
+      /* Retry once with stricter prompt */
+      var retry = sysPrompt + '\n\n重要: 必ず有効なエージェントIDのみ使用すること。有効ID: ' + Object.keys(AGENTS).join(', ');
+      callAPI(retry, [{role:'user', content:userMsg}], 400, function(r2){
+        if(r2.err || !r2.text){ appendLog(task, 'error', 'PLAN FAILED'); cb(null); return; }
+        try{
+          var m2 = r2.text.match(/\{[\s\S]*?\}/);
+          var p2 = JSON.parse(m2 ? m2[0] : r2.text);
+          p2.agents = (p2.agents || []).filter(function(id){ return AGENTS.find(function(x){return x.id===id;}); });
+          if(!p2.agents.length) p2.agents = ['strategy'];
+          appendLog(task, 'plan', p2);
+          cb(p2);
+        } catch(e2){
+          appendLog(task, 'error', 'PLAN PARSE FAILED — using default');
+          cb({agents:['strategy'], reason:'パース失敗のためデフォルト選択'});
+        }
+      });
+    }
+  });
+}
+
+/* ── STEP 2: Execute agents sequentially (STREAMING) ── */
+function executeAgents(task, idx, chainedContext, done){
+  if(idx >= task.plan.agents.length){ done(); return; }
+
+  var agentId = task.plan.agents[idx];
+  var agent = AGENTS.find(function(x){return x.id===agentId;});
+  var agentNum = idx + 1;
+
+  appendLog(task, 'agent_start', {id: agentId, num: agentNum});
+
+  var ctx = buildContext();
+  /* Context optimization: trim chained context to 500 chars to reduce token cost */
+  if(chainedContext){
+    var trimmed = chainedContext.length > 500 ? chainedContext.substring(0, 500) + '…（省略）' : chainedContext;
+    ctx += '\n\n【前エージェントの要点（これを踏まえて実行）】\n' + trimmed;
+  }
+
+  var sysPrompt = buildAgentPrompt(agentId, ctx);
+  var userMsg = '【メインタスク】' + task.goal + '\n\n上記タスクに対して、' + agent.name + 'として最高品質のアウトプットを出してください。';
+
+  S.streamBuffer = '';
+  callAPIStream(sysPrompt, [{role:'user', content:userMsg}], 1800,
+    function onToken(token){
+      S.streamBuffer += token;
+      var el = document.getElementById('stream-body-active');
+      if(el){ el.textContent = S.streamBuffer; }
+    },
+    function onDone(fullText){
+      task.results.push({agentId: agentId, output: fullText});
+      appendLog(task, 'agent_done', {id: agentId, num: agentNum});
+      executeAgents(task, idx+1, fullText, done);
+    },
+    function onError(err){
+      appendLog(task, 'agent_error', {id: agentId, err: err});
+      executeAgents(task, idx+1, chainedContext, done);
+    }
+  );
+}
+
+/* ── STEP 3: Synthesize (STREAMING) ── */
+function synthesize(task, cb){
+  appendLog(task, 'synth_start', null);
+
+  /* Context optimization: each agent output trimmed to 800 chars for synthesis */
+  var combined = task.results.map(function(r){
+    var out = r.output.length > 800 ? r.output.substring(0, 800) + '…' : r.output;
+    return '【' + (AGENTS.find(function(x){return x.id===r.agentId;})||{name:r.agentId}).name + '】\n' + out;
+  }).join('\n\n');
+
+  var sysPrompt = DI_CTX + '\nあなたはDIのシンセサイザーAIです。複数エージェントの出力を統合し、クライアントへの最終アウトプットとして整理してください。重複を除き、論理的な順序で、アクションにつながる形でまとめてください。';
+
+  var userMsg = 'タスク: ' + task.goal + '\n\n各エージェントの出力:\n' + combined;
+
+  S.streamBuffer = '';
+  callAPIStream(sysPrompt, [{role:'user', content:userMsg}], 2200,
+    function onToken(token){
+      S.streamBuffer += token;
+      var el = document.getElementById('stream-synth-active');
+      if(el){ el.textContent = S.streamBuffer; }
+    },
+    function onDone(fullText){
+      task.synthesis = fullText;
+      appendLog(task, 'synth_done', fullText);
+      cb();
+    },
+    function onError(err){ cb(); }
+  );
+}
+
+/* ── Finish ── */
+function finishTask(task, status){
+  task.status = status;
+  S.running = false;
+  document.getElementById('run-btn').disabled = false;
+  saveTasksToStorage();
+  renderHistory();
+  updateTaskDisplay(task);
+}
+
+/* ============================================================
+   DISPLAY
+============================================================ */
+function showTask(task){
+  var area = document.getElementById('exec-area');
+  area.innerHTML = '<div id="task-display"></div>';
+  updateTaskDisplay(task);
+}
+
+function updateTaskDisplay(task){
+  var el = document.getElementById('task-display');
+  if(!el) return;
+  var html = '';
+
+  // Header
+  html += '<div class="task-header">';
+  html += '<div class="task-goal">' + esc(task.goal) + '</div>';
+  html += '<div class="task-meta">';
+  html += '<span class="task-status-badge ' + task.status + '">';
+  var statusLabel = {planning:'◐ 計画中',running:'▶ 実行中',done:'✓ 完了',error:'✕ エラー'};
+  html += statusLabel[task.status] || task.status;
+  html += '</span>';
+  html += '<span style="font-family:var(--mono);font-size:9px;">' + fmtTime(task.ts) + '</span>';
+  if(task.status === 'done'){
+    html += '<button onclick="exportTask(\'' + task.id + '\')" style="margin-left:auto;padding:3px 10px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:10px;font-family:var(--mono);cursor:pointer;" onmouseover="this.style.color=\'var(--green)\'" onmouseout="this.style.color=\'var(--muted)\'">↓ export.md</button>';
+  }
+  html += '</div></div>';
+
+  // Plan
+  if(task.plan){
+    html += '<div class="plan-block">';
+    html += '<div class="plan-title">// selected agents</div>';
+    html += '<div class="plan-steps">';
+    task.plan.agents.forEach(function(id, i){
+      var a = AGENTS.find(function(x){return x.id===id;});
+      if(!a) return;
+      var doneIdx = task.results.findIndex(function(r){ return r.agentId === id; });
+      var stepClass = doneIdx >= 0 ? 'done' : (task.status === 'running' && i === task.results.length ? 'running' : '');
+      if(i > 0) html += '<span class="plan-arrow">→</span>';
+      html += '<div class="plan-step ' + stepClass + '">';
+      html += '<span class="plan-step-num">' + (i+1) + '</span>';
+      html += '<span class="plan-step-icon">' + a.icon + '</span>';
+      html += '<span class="plan-step-name">' + a.name + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+    if(task.plan.reason) html += '<div class="plan-reason">// ' + esc(task.plan.reason) + '</div>';
+    html += '</div>';
+  } else if(task.status === 'planning'){
+    html += '<div class="plan-block"><div class="plan-title">// analyzing task</div>';
+    html += '<div class="dots"><span></span><span></span><span></span></div></div>';
+  }
+
+  // Agent outputs
+  task.results.forEach(function(r, i){
+    var a = AGENTS.find(function(x){return x.id===r.agentId;}) || {name:r.agentId, icon:'●', cat:''};
+    html += '<div class="agent-output">';
+    html += '<div class="ao-header">';
+    html += '<span class="ao-num">0' + (i+1) + '</span>';
+    html += '<span class="ao-icon">' + a.icon + '</span>';
+    html += '<span class="ao-name">' + a.name + '</span>';
+    html += '<span class="ao-status done">done</span>';
+    html += '</div>';
+    html += '<div class="ao-body">' + esc(r.output) + '</div>';
+    html += '</div>';
+  });
+
+  // Currently running agent (streaming body)
+  if(task.status === 'running' && task.plan && task.results.length < task.plan.agents.length){
+    var runningId = task.plan.agents[task.results.length];
+    var ra = AGENTS.find(function(x){return x.id===runningId;}) || {name:runningId, icon:'●', cat:''};
+    html += '<div class="agent-output">';
+    html += '<div class="ao-header">';
+    html += '<span class="ao-num">0' + (task.results.length + 1) + '</span>';
+    html += '<span class="ao-icon">' + ra.icon + '</span>';
+    html += '<span class="ao-name">' + ra.name + '</span>';
+    html += '<span class="ao-status running" style="display:flex;align-items:center;gap:5px;"><span style="font-family:var(--mono);font-size:9px;color:var(--amber);">stream</span><span class="dots"><span></span><span></span><span></span></span></span>';
+    html += '</div>';
+    html += '<div class="ao-body" id="stream-body-active" style="white-space:pre-wrap;min-height:24px;"></div>';
+    html += '</div>';
+  }
+
+  // Synthesis
+  if(task.synthesis){
+    html += '<div class="final-output">';
+    html += '<div class="fo-header"><span class="fo-label">▶ final output // 統合アウトプット</span></div>';
+    html += '<div class="fo-body">' + esc(task.synthesis) + '</div>';
+    html += '</div>';
+  } else if(task.status === 'running' && task.plan && task.results.length === task.plan.agents.length){
+    html += '<div class="final-output">';
+    html += '<div class="fo-header"><span class="fo-label">▶ synthesizing <span style="font-family:var(--mono);font-size:9px;color:var(--green);">stream</span> <span class="dots"><span></span><span></span><span></span></span></span></div>';
+    html += '<div class="fo-body" id="stream-synth-active" style="white-space:pre-wrap;min-height:24px;"></div>';
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+
+  // scroll to bottom of exec area
+  var ea = document.getElementById('exec-area');
+  if(ea) ea.scrollTop = ea.scrollHeight;
+}
+
+function appendLog(task, type, data){
+  if(type === 'plan'){}
+  else if(type === 'agent_start'){ task.status = 'running'; }
+  else if(type === 'agent_done'){
+    // result already pushed before this call
+  }
+  updateTaskDisplay(task);
+}
+
+function renderHistory(){
+  var el = document.getElementById('history-list');
+  if(!S.tasks.length){
+    el.innerHTML = '<div class="hist-empty">タスクはまだありません。</div>';
+    return;
+  }
+  el.innerHTML = S.tasks.map(function(t){
+    var isActive = document.getElementById('task-display') ? true : false;
+    var cls = 'hist-item' + (isActive && S.tasks[0] === t ? ' active' : '');
+    var dot = t.status === 'done' ? '<span style="color:var(--green);font-family:var(--mono);">✓</span>' :
+              t.status === 'error' ? '<span style="color:var(--red);">✕</span>' :
+              '<span style="color:var(--amber);">▶</span>';
+    return '<div class="' + cls + '" onclick="restoreTask(\'' + t.id + '\')">'
+      + '<div class="hist-item-title">' + dot + ' ' + esc(short(t.goal, 28)) + '</div>'
+      + '<div class="hist-item-meta">' + fmtTime(t.ts) + ' · ' + (t.plan ? t.plan.agents.length + ' agents' : '...') + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function restoreTask(id){
+  var task = S.tasks.find(function(t){ return t.id === id; });
+  if(task){ showTask(task); }
+}
+
+/* ============================================================
+   CONTEXT
+============================================================ */
+function buildContext(){
+  var parts = [DI_CTX];
+  if(S.ctx.survey)  parts.push('【調査データ】\n' + S.ctx.survey);
+  if(S.ctx.persona) parts.push('【ペルソナ情報】\n' + S.ctx.persona);
+  if(S.ctx.brief)   parts.push('【案件背景・目的】\n' + S.ctx.brief);
+  return parts.join('\n\n');
+}
+
+function buildAgentPrompt(agentId, ctx){
+  var prompts = {
+    depth:     'あなたはDIのデプスインタビューAIです。ペルソナデータを元に生活者として自然に回答します。感情・価値観・背景を含めた深い本音を口語体で話し、インサイトを引き出します。',
+    grouin:    'あなたはDIのグループインタビューAIです。3〜5名の架空の生活者として対話を展開し、各参加者の異なる意見を表現します。セッション後に主要な発見をサマリーにまとめます。',
+    strategy:  'あなたはDIのマーケティング戦略プランナーAIです。調査データ・ペルソナ・ブリーフを分析し、STP・4P・課題別アプローチで実践的な戦略を設計します。短期〜長期の施策と期待効果まで落とし込みます。',
+    product:   'あなたはDIの商品プランナーAIです。Who×What×Why(RTB)の構造でコンセプトを設計します。複数案(A/B/C案)を比較形式で提示し、競合差別化・ポジショニングも含めます。',
+    journey:   'あなたはDIのカスタマージャーニープランナーAIです。認知→興味→検討→購買→継続→推奨の各フェーズで感情・行動・タッチポイント・阻害要因・施策アイデアを整理します。',
+    brainstorm:'あなたはDIのブレインストーミングAIです。批判なしで多様なアイデアを量産します。SCAMPER・逆転の発想・アナロジーを活用し、各アイデアに消費者心理の仮説を添えます。',
+    activation:'あなたはDIのアクティベーションプランナーAIです。短期(CV率10〜30%向上)・中期(売上20〜40%向上)・長期(市場シェア拡大)のフレームワークで統合施策を設計します。',
+    copy:      'あなたはDIのコピーライターAIです。インサイトとベネフィットを掛け合わせたコピーを生成します。複数の方向性で最低5案出し、各案に狙ったインサイト・訴求軸・使用メディア想定を添えます。',
+    media:     'あなたはDIのメディアプランナーAIです。ターゲット・目的・予算を踏まえた最適なメディアミックスを提案します。ROI期待値・フライトプランも含めます。',
+    digital:   'あなたはDIのデジタルメディアプランナーAIです。SNS・検索・動画広告の最適ミックスを設計します。ターゲティング設計・KPI設定・A/Bテスト計画・PDCAサイクル設計も含めます。'
+  };
+  var base = prompts[agentId] || 'あなたはDIのマーケティングAIです。';
+  return base + (ctx ? '\n\n' + ctx : '');
+}
+
+/* ============================================================
+   API — Non-streaming (planner)
+============================================================ */
+function callAPI(sysPrompt, messages, maxTokens, cb){
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': S.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: maxTokens || 1500,
+      system: sysPrompt,
+      messages: messages
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.error){ cb({err: d.error.message}); return; }
+    var text = '';
+    if(d.content) d.content.forEach(function(b){ if(b.type === 'text') text += b.text; });
+    cb({text: text});
+  })
+  .catch(function(e){ cb({err: e.message.indexOf('Failed to fetch')>=0 ? 'APIに接続できません。Chromeで開く場合は「--allow-file-access-from-files」オプションか、ローカルサーバー経由でアクセスしてください。' : e.message}); });
+}
+
+/* ============================================================
+   API — Streaming (agents + synthesis)
+   Uses ReadableStream + TextDecoder for real-time token display
+============================================================ */
+function callAPIStream(sysPrompt, messages, maxTokens, onToken, onDone, onError){
+  var body = JSON.stringify({
+    model: 'claude-sonnet-4-5',
+    max_tokens: maxTokens || 1800,
+    system: sysPrompt,
+    messages: messages,
+    stream: true
+  });
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': S.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: body
+  }).then(function(response){
+    if(!response.ok){
+      return response.json().then(function(d){
+        onError(d.error ? d.error.message : 'HTTP ' + response.status);
+      });
+    }
+    var reader = response.body.getReader();
+    var decoder = new TextDecoder();
+    var lineBuffer = '';
+    var fullText   = '';
+
+    function pump(){
+      reader.read().then(function(result){
+        if(result.done){
+          onDone(fullText);
+          return;
+        }
+        lineBuffer += decoder.decode(result.value, {stream: true});
+        var lines = lineBuffer.split('\n');
+        lineBuffer  = lines.pop(); /* keep incomplete last line */
+
+        for(var i = 0; i < lines.length; i++){
+          var line = lines[i].trim();
+          if(!line.startsWith('data: ')) continue;
+          var data = line.slice(6).trim();
+          if(data === '[DONE]') continue;
+          try{
+            var parsed = JSON.parse(data);
+            if(parsed.type === 'content_block_delta' &&
+               parsed.delta && parsed.delta.type === 'text_delta'){
+              var token = parsed.delta.text;
+              fullText += token;
+              onToken(token);
+              /* Auto-scroll exec area */
+              var ea = document.getElementById('exec-area');
+              if(ea) ea.scrollTop = ea.scrollHeight;
+            }
+          } catch(e){}
+        }
+        pump();
+      }).catch(function(e){ onError(e.message); });
+    }
+    pump();
+  }).catch(function(e){ onError(e.message); });
+}
+
+/* ============================================================
+   MODALS / SETTINGS
+============================================================ */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function saveApi(){
+  S.apiKey = document.getElementById('api-inp').value.trim();
+  sessionStorage.setItem('di_orch_key', S.apiKey);
+  updateApiStatus();
+  closeModal('api-modal');
+}
+
+function updateApiStatus(){
+  var dot = document.getElementById('api-dot');
+  var txt = document.getElementById('api-txt');
+  if(S.apiKey){
+    dot.className = 'status-dot ok';
+    txt.textContent = 'connected';
+    txt.style.color = 'var(--green)';
+  } else {
+    dot.className = 'status-dot err';
+    txt.textContent = 'no api key';
+    txt.style.color = 'var(--muted)';
+  }
+}
+
+function saveCtx(){
+  S.ctx.survey  = document.getElementById('ctx-survey-in').value.trim();
+  S.ctx.persona = document.getElementById('ctx-persona-in').value.trim();
+  S.ctx.brief   = document.getElementById('ctx-brief-in').value.trim();
+  updateCtxStatus();
+  closeModal('ctx-modal');
+}
+
+function updateCtxStatus(){
+  var keys = ['survey','persona','brief'];
+  keys.forEach(function(k){
+    var dot = document.getElementById('cdot-' + k);
+    var val = document.getElementById('cval-' + k);
+    if(S.ctx[k]){
+      dot.className = 'ctx-dot set';
+      val.textContent = S.ctx[k].length + 'chars';
+    } else {
+      dot.className = 'ctx-dot';
+      val.textContent = '—';
+    }
+  });
+  // populate modal inputs
+  document.getElementById('ctx-survey-in').value  = S.ctx.survey;
+  document.getElementById('ctx-persona-in').value = S.ctx.persona;
+  document.getElementById('ctx-brief-in').value   = S.ctx.brief;
+  // saved chips
+  var area = document.getElementById('ctx-saved-area');
+  if(!area) return;
+  var chips = keys.filter(function(k){ return S.ctx[k]; }).map(function(k){
+    return '<span class="saved-chip">' + k + ' · ' + S.ctx[k].length + 'c'
+      + '<button class="saved-del" onclick="clearCtx(\'' + k + '\')">&times;</button></span>';
+  }).join('');
+  area.innerHTML = chips ? '<div style="margin-bottom:12px;">' + chips + '</div>' : '';
+}
+
+function clearCtx(k){
+  S.ctx[k] = '';
+  updateCtxStatus();
+}
+
+/* ============================================================
+   UTILS
+============================================================ */
+function esc(s){ if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function short(s,n){ return s && s.length > n ? s.substring(0,n) + '…' : (s||''); }
+function fmtTime(d){
+  if(!(d instanceof Date)) d = new Date(d);
+  return d.getHours() + ':' + ('0'+d.getMinutes()).slice(-2);
+}
+
+/* ============================================================
+   AGENT SEO — CAPABILITY MANIFEST (Principle 4)
+   Machine-readable description for AI agent discoverability
+============================================================ */
+function buildManifest(){
+  var manifest = {
+    "$schema": "https://schema.di-marketing.ai/orchestrator/v1",
+    "name": "DI Marketing Orchestrator",
+    "version": "3.0",
+    "provider": "株式会社デジタルアイデンティティ",
+    "description": "マーケティングリサーチから戦略・クリエイティブ・メディアプランまでを自動オーケストレーションするAIシステム。課題を自然言語で入力するとエージェントが自動選択・連鎖実行される。",
+    "invocation": {
+      "type": "natural_language",
+      "input_format": "自由記述（日本語）— 達成したいこと・解きたい課題",
+      "example": "30代女性向け新商品のコンセプトとキャッチコピーをリサーチから一気に作りたい"
+    },
+    "capabilities": Object.keys(AGENTS).map(function(id){
+      var a = AGENTS.find(function(x){return x.id===id;});
+      return {
+        "id": id,
+        "name": a.name,
+        "category": a.cat,
+        "description": a.desc,
+        "output_type": "text/japanese-marketing",
+        "can_receive_chained_input": true
+      };
+    }),
+    "orchestration": {
+      "auto_planning": true,
+      "agent_chaining": true,
+      "synthesis": true,
+      "max_agents_per_task": 4,
+      "planner_model": "claude-sonnet-4-5"
+    },
+    "context_slots": ["survey","persona","brief"],
+    "knowledge_base": {
+      "domains": ["マーケティングリサーチ","戦略立案","クリエイティブ","メディアプラン"],
+      "industries": ["生命保険","資産運用","不動産","中古車","フォトスタジオ","SaaS","損害保険"],
+      "research_methods": ["定量調査","定性調査","デプスインタビュー","グループインタビュー","覆面調査","Webアンケート"],
+      "case_studies": 7
+    },
+    "generated_at": new Date().toISOString()
+  };
+  return manifest;
+}
+
+function showManifest(){
+  var manifest = buildManifest();
+  document.getElementById('manifest-output').textContent = JSON.stringify(manifest, null, 2);
+  openModal('manifest-modal');
+}
+
+function copyManifest(){
+  var manifest = buildManifest();
+  navigator.clipboard.writeText(JSON.stringify(manifest, null, 2)).then(function(){
+    var btn = event.target;
+    var orig = btn.textContent;
+    btn.textContent = 'copied ✓';
+    btn.style.color = 'var(--green)';
+    setTimeout(function(){ btn.textContent = orig; btn.style.color = ''; }, 1800);
+  });
+}
+
+
+/* ============================================================
+   PERSISTENCE — localStorage (last 10 tasks)
+============================================================ */
+function saveTasksToStorage(){
+  try{
+    var data = S.tasks.slice(0, 10).map(function(t){
+      return {
+        id: t.id, goal: t.goal, status: t.status, ts: t.ts,
+        plan: t.plan,
+        results: (t.results||[]).map(function(r){
+          return {agentId: r.agentId, output: (r.output||'').substring(0, 2000)};
+        }),
+        synthesis: (t.synthesis||'').substring(0, 3000)
+      };
+    });
+    localStorage.setItem('di_orch_tasks_v3', JSON.stringify(data));
+  } catch(e){}
+}
+
+function loadTasksFromStorage(){
+  try{
+    var raw = localStorage.getItem('di_orch_tasks_v3');
+    if(!raw) return;
+    var parsed = JSON.parse(raw);
+    S.tasks = parsed.map(function(t){
+      t.ts = new Date(t.ts);
+      t.results = t.results || [];
+      return t;
+    });
+  } catch(e){ S.tasks = []; }
+}
+
+/* ============================================================
+   EXPORT — Markdown download
+============================================================ */
+function exportTask(taskId){
+  var task = S.tasks.find(function(t){ return t.id === taskId; });
+  if(!task) return;
+  var lines = [];
+  lines.push('# ' + task.goal);
+  lines.push('');
+  lines.push('**日時**: ' + task.ts.toLocaleString('ja-JP'));
+  if(task.plan){
+    lines.push('**エージェント**: ' + task.plan.agents.map(function(id){ return (AGENTS.find(function(x){return x.id===id;})||{name:id}).name; }).join(' → '));
+  }
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+  if(task.synthesis){
+    lines.push('## 統合アウトプット');
+    lines.push('');
+    lines.push(task.synthesis);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+  }
+  (task.results||[]).forEach(function(r){
+    var a = AGENTS.find(function(x){return x.id===r.agentId;}) || {name:r.agentId};
+    lines.push('## ' + a.name);
+    lines.push('');
+    lines.push(r.output);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+  });
+  var md = lines.join('\n');
+  var blob = new Blob([md], {type:'text/markdown;charset=utf-8'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url;
+  a.download = 'di-task-' + task.id + '.md';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+}
+
+
+/* MOBILE MENU */
+function toggleMenu(){
+  var left = document.getElementById('left');
+  var isOpen = left.classList.contains('open');
+  if(isOpen){ left.classList.remove('open'); }
+  else { left.classList.add('open'); }
+}
+/* Close menu on outside click (mobile) */
+document.addEventListener('click', function(e){
+  var left = document.getElementById('left');
+  if(!left.classList.contains('open')) return;
+  if(!left.contains(e.target) && e.target.id !== 'menu-toggle'){
+    left.classList.remove('open');
+  }
+});
+
+
+function buildAgentPrompt(agentId, ctx){
+  var prompts = {
+    depth:     'あなたはDIのデプスインタビューAIです。ペルソナデータを元に生活者として自然に回答します。感情・価値観・背景を含めた深い本音を口語体で話し、インサイトを引き出します。',
+    grouin:    'あなたはDIのグループインタビューAIです。3〜5名の架空の生活者として対話を展開し、各参加者の異なる意見を表現します。セッション後に主要な発見をサマリーにまとめます。',
+    strategy:  'あなたはDIのマーケティング戦略プランナーAIです。調査データ・ペルソナ・ブリーフを分析し、STP・4P・課題別アプローチで実践的な戦略を設計します。短期〜長期の施策と期待効果まで落とし込みます。',
+    product:   'あなたはDIの商品プランナーAIです。Who×What×Why(RTB)の構造でコンセプトを設計します。複数案(A/B/C案)を比較形式で提示し、競合差別化・ポジショニングも含めます。',
+    journey:   'あなたはDIのカスタマージャーニープランナーAIです。認知→興味→検討→購買→継続→推奨の各フェーズで感情・行動・タッチポイント・阻害要因・施策アイデアを整理します。',
+    brainstorm:'あなたはDIのブレインストーミングAIです。批判なしで多様なアイデアを量産します。SCAMPER・逆転の発想・アナロジーを活用し、各アイデアに消費者心理の仮説を添えます。',
+    activation:'あなたはDIのアクティベーションプランナーAIです。短期(CV率10〜30%向上)・中期(売上20〜40%向上)・長期(市場シェア拡大)のフレームワークで統合施策を設計します。',
+    copy:      'あなたはDIのコピーライターAIです。インサイトとベネフィットを掛け合わせたコピーを生成します。複数の方向性で最低5案出し、各案に狙ったインサイト・訴求軸・使用メディア想定を添えます。',
+    media:     'あなたはDIのメディアプランナーAIです。ターゲット・目的・予算を踏まえた最適なメディアミックスを提案します。ROI期待値・フライトプランも含めます。',
+    digital:   'あなたはDIのデジタルメディアプランナーAIです。SNS・検索・動画広告の最適ミックスを設計します。ターゲティング設計・KPI設定・A/Bテスト計画・PDCAサイクル設計も含めます。'
+  };
+  var base = prompts[agentId] || 'あなたはDIのマーケティングAIです。';
+  return base + (ctx ? '\n\n' + ctx : '');
+}
+
+
+/* ============================================================
+   API — Non-streaming (planner)
+============================================================ */
+function callAPI(sysPrompt, messages, maxTokens, cb){
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': S.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: maxTokens || 1500,
+      system: sysPrompt,
+      messages: messages
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.error){ cb({err: d.error.message}); return; }
+    var text = '';
+    if(d.content) d.content.forEach(function(b){ if(b.type === 'text') text += b.text; });
+    cb({text: text});
+  })
+  .catch(function(e){ cb({err: e.message.indexOf('Failed to fetch')>=0 ? 'APIに接続できません。Chromeで開く場合は「--allow-file-access-from-files」オプションか、ローカルサーバー経由でアクセスしてください。' : e.message}); });
+}
+
+/* ============================================================
+   API — Streaming (agents + synthesis)
+   Uses ReadableStream + TextDecoder for real-time token display
+============================================================ */
+function callAPIStream(sysPrompt, messages, maxTokens, onToken, onDone, onError){
+  var body = JSON.stringify({
+    model: 'claude-sonnet-4-5',
+    max_tokens: maxTokens || 1800,
+    system: sysPrompt,
+    messages: messages,
+    stream: true
+  });
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': S.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: body
+  }).then(function(response){
+    if(!response.ok){
+      return response.json().then(function(d){
+        onError(d.error ? d.error.message : 'HTTP ' + response.status);
+      });
+    }
+    var reader = response.body.getReader();
+    var decoder = new TextDecoder();
+    var lineBuffer = '';
+    var fullText   = '';
+
+    function pump(){
+      reader.read().then(function(result){
+        if(result.done){
+          onDone(fullText);
+          return;
+        }
+        lineBuffer += decoder.decode(result.value, {stream: true});
+        var lines = lineBuffer.split('\n');
+        lineBuffer  = lines.pop(); /* keep incomplete last line */
+
+        for(var i = 0; i < lines.length; i++){
+          var line = lines[i].trim();
+          if(!line.startsWith('data: ')) continue;
+          var data = line.slice(6).trim();
+          if(data === '[DONE]') continue;
+          try{
+            var parsed = JSON.parse(data);
+            if(parsed.type === 'content_block_delta' &&
+               parsed.delta && parsed.delta.type === 'text_delta'){
+              var token = parsed.delta.text;
+              fullText += token;
+              onToken(token);
+              /* Auto-scroll exec area */
+              var ea = document.getElementById('exec-area');
+              if(ea) ea.scrollTop = ea.scrollHeight;
+            }
+          } catch(e){}
+        }
+        pump();
+      }).catch(function(e){ onError(e.message); });
+    }
+    pump();
+  }).catch(function(e){ onError(e.message); });
+}
+
+
+/* ============================================================
+   DISPLAY
+============================================================ */
+function showTask(task){
+  var area = document.getElementById('exec-area');
+  area.innerHTML = '<div id="task-display"></div>';
+  updateTaskDisplay(task);
+  area.onclick = function(e){
+    var btn = e.target.closest('[data-exportid]');
+    if(btn){ exportTask(btn.getAttribute('data-exportid')); }
+  };
+}
+
+function updateTaskDisplay(task){
+  var el = document.getElementById('task-display');
+  if(!el) return;
+  var html = '';
+  html += '<div class="task-header">';
+  html += '<div class="task-goal">'+esc(task.goal)+'</div>';
+  html += '<div class="task-meta">';
+  var statusLabel = {planning:'◐ 計画中',running:'▶ 実行中',done:'✓ 完了',error:'✕ エラー'};
+  html += '<span class="task-status-badge '+(task.status||'')+'">'+( statusLabel[task.status]||task.status)+'</span>';
+  html += '<span style="font-family:var(--mono);font-size:9px;">'+fmtTime(task.ts)+'</span>';
+  if(task.status==='done'){
+    html += '<button data-exportid="'+task.id+'" style="margin-left:auto;padding:2px 8px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:10px;font-family:var(--mono);cursor:pointer;">↓ export.md</button>';
+  }
+  html += '</div></div>';
+  if(task.plan){
+    html += '<div class="plan-block"><div class="plan-title">// selected agents</div><div class="plan-steps">';
+    task.plan.agents.forEach(function(id,i){
+      var a = AGENTS.find(function(x){return x.id===id;});
+      if(!a) return;
+      var doneIdx = task.results.findIndex(function(r){return r.agentId===id;});
+      var sc = doneIdx>=0?'done':(task.status==='running'&&i===task.results.length?'running':'');
+      if(i>0) html += '<span class="plan-arrow">→</span>';
+      html += '<div class="plan-step '+sc+'"><span style="font-family:var(--mono);font-size:9px;color:var(--muted);">'+(i+1)+'</span><span>'+a.icon+'</span><span style="font-size:11px;">'+a.name+'</span></div>';
+    });
+    html += '</div>';
+    if(task.plan.reason) html += '<div class="plan-reason">// '+esc(task.plan.reason)+'</div>';
+    html += '</div>';
+  } else if(task.status==='planning'){
+    html += '<div class="plan-block"><div class="plan-title">// analyzing task</div><div class="dots"><span></span><span></span><span></span></div></div>';
+  }
+  (task.results||[]).forEach(function(r,i){
+    var a = AGENTS.find(function(x){return x.id===r.agentId;})||{name:r.agentId,icon:'?'};
+    html += '<div class="agent-output"><div class="ao-header"><span class="ao-num">0'+(i+1)+'</span><span class="ao-icon">'+a.icon+'</span><span class="ao-name">'+a.name+'</span><span class="ao-status done">done</span></div><div class="ao-body">'+esc(r.output)+'</div></div>';
+  });
+  if(task.status==='running'&&task.plan&&task.results.length<task.plan.agents.length){
+    var rid = task.plan.agents[task.results.length];
+    var ra = AGENTS.find(function(x){return x.id===rid;})||{name:rid,icon:'?'};
+    html += '<div class="agent-output"><div class="ao-header"><span class="ao-num">0'+(task.results.length+1)+'</span><span class="ao-icon">'+ra.icon+'</span><span class="ao-name">'+ra.name+'</span><span class="ao-status running" style="display:flex;align-items:center;gap:4px;"><span style="font-family:var(--mono);font-size:9px;">stream</span><span class="dots"><span></span><span></span><span></span></span></span></div><div class="ao-body" id="stream-body-active" style="white-space:pre-wrap;min-height:20px;"></div></div>';
+  }
+  if(task.synthesis){
+    html += '<div class="final-output"><div class="fo-header"><span class="fo-label">▶ final output // 統合アウトプット</span></div><div class="fo-body">'+esc(task.synthesis)+'</div></div>';
+  } else if(task.status==='running'&&task.plan&&task.results.length===task.plan.agents.length){
+    html += '<div class="final-output"><div class="fo-header"><span class="fo-label">▶ synthesizing <span style="font-family:var(--mono);font-size:9px;color:var(--green);">stream</span> <span class="dots"><span></span><span></span><span></span></span></span></div><div class="fo-body" id="stream-synth-active" style="white-space:pre-wrap;min-height:20px;"></div></div>';
+  }
+  el.innerHTML = html;
+  var ea = document.getElementById('exec-area');
+  if(ea) ea.scrollTop = ea.scrollHeight;
+}
+
+function renderHistory(){
+  var el = document.getElementById('history-list');
+  if(!el) return;
+  if(!S.tasks.length){ el.innerHTML = '<div class="hist-empty">タスクはまだありません。</div>'; return; }
+  el.innerHTML = S.tasks.map(function(t){
+    var dot = t.status==='done'?'<span style="color:var(--green)">✓</span>':t.status==='error'?'<span style="color:var(--red)">✕</span>':'<span style="color:var(--amber)">▶</span>';
+    return '<div class="hist-item" data-taskid="'+t.id+'"><div class="hist-title">'+dot+' '+esc(short(t.goal,26))+'</div><div class="hist-meta">'+fmtTime(t.ts)+(t.plan?' · '+t.plan.agents.length+' agents':'')+'</div></div>';
+  }).join('');
+  var hlist = document.getElementById('history-list');
+  if(hlist){ hlist.onclick = function(e){ var item = e.target.closest('[data-taskid]'); if(item) restoreTask(item.getAttribute('data-taskid')); }; }
+}
+
+function restoreTask(id){
+  var task = S.tasks.find(function(t){return t.id===id;});
+  if(task){ showTask(task); }
+}
+
+/* ============================================================
+   CONTEXT
+============================================================ */
+function buildContext(){
+  var parts = [DI_KNOWLEDGE];
+  if(S.ctx._funnelTarget){parts.push('【ターゲット設定】\n'+S.ctx._funnelTarget);}
+  if(S.ctx.survey)  parts.push('【調査データ】\n'+S.ctx.survey);
+  if(S.ctx.persona) parts.push('【ペルソナ情報】\n'+S.ctx.persona);
+  if(S.ctx.brief)   parts.push('【案件背景・目的】\n'+S.ctx.brief);
+  return parts.join('\n\n');
+}
+
+/* ============================================================
+   MODALS / SETTINGS
+============================================================ */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function saveApi(){
+  S.apiKey = document.getElementById('api-inp').value.trim();
+  sessionStorage.setItem('di_ap_key', S.apiKey);
+  updateApiStatus();
+  closeModal('api-modal');
+}
+
+function updateApiStatus(){
+  var dot=document.getElementById('api-dot'), txt=document.getElementById('api-txt');
+  if(S.apiKey){ dot.className='status-dot ok'; txt.textContent='connected'; txt.style.color='var(--green)'; }
+  else { dot.className='status-dot err'; txt.textContent='no api key'; txt.style.color='var(--muted)'; }
+}
+
+function saveCtx(){
+  S.ctx.survey  = document.getElementById('ctx-survey-in').value.trim();
+  S.ctx.persona = document.getElementById('ctx-persona-in').value.trim();
+  S.ctx.brief   = document.getElementById('ctx-brief-in').value.trim();
+  updateCtxStatus();
+  closeModal('ctx-modal');
+}
+
+function updateCtxStatus(){
+  ['survey','persona','brief'].forEach(function(k){
+    var dot=document.getElementById('cdot-'+k), val=document.getElementById('cval-'+k);
+    if(!dot||!val) return;
+    if(S.ctx[k]){ dot.className='ctx-dot set'; val.textContent=S.ctx[k].length+'c'; }
+    else { dot.className='ctx-dot'; val.textContent='—'; }
+  });
+  document.getElementById('ctx-survey-in').value  = S.ctx.survey;
+  document.getElementById('ctx-persona-in').value = S.ctx.persona;
+  document.getElementById('ctx-brief-in').value   = S.ctx.brief;
+}
+
+/* ============================================================
+   MANIFEST
+============================================================ */
+function buildManifest(){
+  return {
+    '$schema': 'https://schema.di-marketing.ai/platform/v1',
+    name: 'DI AI PLATFORM', version: '4.0',
+    provider: '株式会社デジタルアイデンティティ',
+    modes: ['agents','orchestrate'],
+    agents: AGENTS.map(function(a){ return {id:a.id,name:a.name,category:a.cat,description:a.desc}; }),
+    knowledge_blocks: 38,
+    industries: ['生命保険','資産運用','不動産','中古車','SaaS','フォトスタジオ','損害保険','BtoB製造業'],
+    generated_at: new Date().toISOString()
+  };
+}
+function showManifest(){
+  document.getElementById('manifest-output').textContent = JSON.stringify(buildManifest(),null,2);
+  openModal('manifest-modal');
+}
+function copyManifest(){
+  navigator.clipboard.writeText(JSON.stringify(buildManifest(),null,2)).then(function(){
+    var btn=event.target; var orig=btn.textContent;
+    btn.textContent='copied ✓'; btn.style.color='var(--green)';
+    setTimeout(function(){btn.textContent=orig;btn.style.color='';},1800);
+  });
+}
+
+/* ============================================================
+   UTILS
+============================================================ */
+function esc(s){ if(!s)return''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function escAttr(s){ return(s||'').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+function short(s,n){ return s&&s.length>n?s.substring(0,n)+'…':(s||''); }
+function fmtTime(d){ if(!(d instanceof Date))d=new Date(d); return d.getHours()+':'+(('0'+d.getMinutes()).slice(-2)); }
+function getAgent(id){ return AGENTS.find(function(a){return a.id===id;}); }
+/* ============================================================
+   PERSISTENCE — localStorage (last 10 tasks)
+============================================================ */
+function saveTasksToStorage(){
+  try{
+    var data = S.tasks.slice(0, 10).map(function(t){
+      return {
+        id: t.id, goal: t.goal, status: t.status, ts: t.ts,
+        plan: t.plan,
+        results: (t.results||[]).map(function(r){
+          return {agentId: r.agentId, output: (r.output||'').substring(0, 2000)};
+        }),
+        synthesis: (t.synthesis||'').substring(0, 3000)
+      };
+    });
+    localStorage.setItem('di_orch_tasks_v3', JSON.stringify(data));
+  } catch(e){}
+}
+
+function loadTasksFromStorage(){
+  try{
+    var raw = localStorage.getItem('di_orch_tasks_v3');
+    if(!raw) return;
+    var parsed = JSON.parse(raw);
+    S.tasks = parsed.map(function(t){
+      t.ts = new Date(t.ts);
+      t.results = t.results || [];
+      return t;
+    });
+  } catch(e){ S.tasks = []; }
+}
+
+/* ============================================================
+   EXPORT — Markdown download
+============================================================ */
+function exportTask(taskId){
+  var task = S.tasks.find(function(t){ return t.id === taskId; });
+  if(!task) return;
+  var lines = [];
+  lines.push('# ' + task.goal);
+  lines.push('');
+  lines.push('**日時**: ' + task.ts.toLocaleString('ja-JP'));
+  if(task.plan){
+    lines.push('**エージェント**: ' + task.plan.agents.map(function(id){ return (AGENTS.find(function(x){return x.id===id;})||{name:id}).name; }).join(' → '));
+  }
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+  if(task.synthesis){
+    lines.push('## 統合アウトプット');
+    lines.push('');
+    lines.push(task.synthesis);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+  }
+  (task.results||[]).forEach(function(r){
+    var a = AGENTS.find(function(x){return x.id===r.agentId;}) || {name:r.agentId};
+    lines.push('## ' + a.name);
+    lines.push('');
+    lines.push(r.output);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+  });
+  var md = lines.join('\n');
+  var blob = new Blob([md], {type:'text/markdown;charset=utf-8'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url;
+  a.download = 'di-task-' + task.id + '.md';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+}
+
+
+/* MOBILE MENU */
+function toggleMenu(){
+  var left = document.getElementById('left');
+  var isOpen = left.classList.contains('open');
+  if(isOpen){ left.classList.remove('open'); }
+  else { left.classList.add('open'); }
+}
+/* Close menu on outside click (mobile) */
+document.addEventListener('click', function(e){
+  var left = document.getElementById('left');
+  if(!left.classList.contains('open')) return;
+  if(!left.contains(e.target) && e.target.id !== 'menu-toggle'){
+    left.classList.remove('open');
+  }
+});
+
+
+
+/* ============================================================
+   TARGET FUNNEL  (FS_ prefix to avoid conflict with main S)
+============================================================ */
+var FS = {age:[],gender:[],life:[],region:[],phases:[],change:null,product:''};
+var FS_SAVED = [];
+var FS_TAB = 'data';
+
+var FS_AGE = {
+  '10-20代':{m:1150,f:1090,t:2240},
+  '30代':{m:690,f:660,t:1350},
+  '40代':{m:840,f:810,t:1650},
+  '50代':{m:820,f:800,t:1620},
+  '60代以上':{m:1850,f:2300,t:4150}
+};
+var FS_LIFE = {
+  /* 基本ステージ */
+  '学生':800,'社会人独身':1100,'子育て中':1400,'シニア':3600,'法人担当者':500,
+  /* ライフイベント（任意） */
+  '就職・転職':600,'結婚':55,'離婚':25,'死別・相続':80,
+  '妊娠・出産':80,'子の幼稚園・小学校入学':120,'子の中学・高校入学':110,
+  '子の大学進学':60,'子の独立・巣立ち':180,
+  '住宅購入・マンション購入':30,'住宅リフォーム':70,'引越し':350,
+  '車購入・買替え':400,'車売却':200,
+  '親の介護':400,'自身の病気・入院':300,
+  '退職・セカンドキャリア':200,'起業・副業開始':150,
+  '資産運用・投資開始':250,'海外移住・帰国':30
+};
+var FS_REGS = [
+  {k:'首都圏',pct:29,desc:'東京・神奈川・埼玉・千葉'},
+  {k:'関西圏',pct:16,desc:'大阪・京都・兵庫・奈良'},
+  {k:'東海圏',pct:12,desc:'愛知・岐阜・三重・静岡'},
+  {k:'その他地方',pct:43,desc:'北海道・東北・中国・四国・九州'}
+];
+var FS_AIDMA = [
+  {p:'A',label:'Attention',sub:'まだ知らない',color:'#B5D4F4',r:1.0},
+  {p:'I',label:'Interest',sub:'知ってるが未関心',color:'#9FE1CB',r:0.38},
+  {p:'D',label:'Desire',sub:'欲しいと思っている',color:'#FAC775',r:0.15},
+  {p:'M',label:'Memory',sub:'比較・検討中',color:'#F5C4B3',r:0.08},
+  {p:'Ac',label:'Action',sub:'購買後・既存顧客',color:'#AFA9EC',r:0.04}
+];
+var FS_AGENT_MAP = {
+  A:['depth','grouin','strategy'],
+  I:['depth','brainstorm','copy'],
+  D:['product','activation','copy'],
+  M:['activation','digital','media'],
+  Ac:['journey','activation','strategy']
+};
+var FS_COMPS = [
+  {tags:['リースバック','住宅','不動産'],age:['50代','60代以上'],
+   items:[{name:'セゾンファンデックス',share:'16.8%',note:'都市型・ブランド広告に注力',phase:'D→M',src:'DI×一建設 n=942'},
+          {name:'ハウスドゥ',share:'15.3%',note:'FC展開・ロードサイド店舗が強み',phase:'I→D',src:'DI×一建設 n=942'},
+          {name:'SBI系',share:'7.2%',note:'オンライン査定で若年シニア層獲得',phase:'A→I',src:'DI×一建設 n=942'},
+          {name:'大京ハウジング',share:'4.1%',note:'マンション特化・THE LIONS顧客基盤活用',phase:'M',src:'DI×一建設 n=942'},
+          {name:'応援宣言',share:'3.1%',note:'TV CMで認知拡大中',phase:'A→I',src:'DI×一建設 n=942'}]},
+  {tags:['車','中古','買取','自動車'],age:['20代','30代','40代'],
+   items:[{name:'ガリバー',share:null,note:'業界最大手。TV広告で認知最強',phase:'A→M',src:'DI×アップルオート提案'},
+          {name:'ネクステージ',share:null,note:'出店数急増・SNS広告で若年層獲得',phase:'I→D',src:'DI×アップルオート提案'},
+          {name:'IDOM',share:null,note:'オンライン査定・即日対応を強化',phase:'A→I',src:'業界推計'}]},
+  {tags:['保険','生命','医療'],age:['30代','40代','50代'],
+   items:[{name:'ソニー生命',share:null,note:'ライフプランナー制度が差別化。DI支援実績あり',phase:'I→M',src:'DI×ソニー生命 n=6,000'},
+          {name:'日本生命',share:null,note:'認知No.1。シニア層に特に強い',phase:'A→D',src:'業界推計'},
+          {name:'住友生命(Vitality)',share:null,note:'行動変容×保険で30-40代獲得',phase:'I→D',src:'業界推計'}]},
+  {tags:['投資','資産','ファンド','証券'],age:['40代','50代'],
+   items:[{name:'楽天証券',share:null,note:'低コスト・アプリUXで40代以下を席巻',phase:'A→D',src:'業界推計'},
+          {name:'SBI証券',share:null,note:'手数料ゼロ戦略。積立NISAで若年層獲得',phase:'A→I',src:'業界推計'},
+          {name:'三井住友DS AM',share:null,note:'DI支援実績。ファンド詳細ページが強み',phase:'D→M',src:'DI×三井住友DS n=1,500'}]},
+  {tags:['SaaS','座席','BtoB','システム'],life:['法人担当者'],
+   items:[{name:'Condeco',share:null,note:'欧米系大手。価格高め・機能充実',phase:'D→M',src:'DI×Nimway覆面調査10社'},
+          {name:'OfficeBot',share:null,note:'国産・中小向け・低価格',phase:'I→D',src:'DI×Nimway覆面調査10社'}]},
+  {tags:['フォトスタジオ','写真','撮影','子供'],life:['子育て中'],
+   items:[{name:'スタジオアリス',share:null,note:'業界最大手。子供写真特化で圧倒的認知',phase:'A→M',src:'業界推計'},
+          {name:'スタジオマリオ',share:null,note:'カメラのキタムラ傘下。全国展開',phase:'A→D',src:'業界推計'}]},
+  {tags:['マンション','分譲','不動産購入'],age:['30代','40代'],
+   items:[{name:'野村不動産(プラウド)',share:null,note:'高品質ブランド。富裕層に強い',phase:'D→M',src:'業界推計'},
+          {name:'三井不動産レジデンシャル',share:null,note:'Park系ブランド。都市部上位層',phase:'D→M',src:'業界推計'},
+          {name:'大京(THE LIONS)',share:null,note:'DI支援実績。パワーカップル向けリブランド中',phase:'I→M',src:'DI×大京提案'}]}
+];
+var FS_INS = [
+  {tags:['保険','生命','医療','アクサ'],age:['30代','40代','50代'],badge:'DI×アクサ生命 Webアンケート(n=692)',text:'保障内容に不満を持つ層が約38%。ライフイベント（退職・介護）が加入検討のトリガー。Q7ライフイベント11項目で購買意向を高精度に予測。'},
+  {tags:['リースバック','不動産','住宅'],age:['50代','60代以上'],badge:'DI×一建設 面談時継続アンケート(n=942・13波)',text:'60代が36%で最多。借入ローン返済31%・生活資金確保24%。競合：セゾン16.8%・ハウスドゥ15.3%・SBI7.2%。'},
+  {tags:['車','中古','買取'],age:['30代','40代'],badge:'DI×アップルオートネットワーク Webアンケート(n=4,000)',text:'SEOセッション数22%減が課題。25〜49歳に集中。離脱阻害要因は「査定額への不信感」。地方ほどロードサイド店舗認知が重要。'},
+  {tags:['投資','資産','ファンド'],age:['40代','50代'],badge:'DI×三井住友DS Webアンケート(n=1,500)',text:'ファンド詳細ページリピート率80%だが回遊率が低い。深層動機は「家族を守れなくなる恐怖」。5幕構造ペルソナ設計が有効。'},
+  {tags:['フォトスタジオ','写真'],life:['子育て中'],badge:'DI×らかんスタジオ 提案',text:'マタニティ→お宮参り→1歳記念の継続型顧客が最重要。Instagram認知が主流。24ヶ月で月間売上+58%（ベースシナリオ）。'},
+  {tags:['SaaS','座席','BtoB'],life:['法人担当者'],badge:'DI×Nimway 覆面調査(10社)+Webアンケート(n=692)',text:'コロナ後のオフィス回帰でハイブリッドワーク浸透。競合10社の価格・機能・トーク術を網羅。座席管理需要は増加継続。'},
+  {tags:['マンション','分譲'],age:['30代','40代'],badge:'DI×大京 THE LIONS 調査提案',text:'パワーカップル（世帯年収1,200万）へリブランド。4仮説検証で価格・商品・立地・ブランド認知を分離。調査で+2〜3件受注可能性。'},
+  {tags:['ソニー','デジタル','マーケティング'],age:['30代','40代','50代'],badge:'DI×ソニー生命 Webアンケート(n=6,000)+デプス(4名)',text:'27〜55歳・世帯年収500万以上。オウンドメディア戦略策定が課題。年代・収入別クロスでコンテンツ改善。デプスでUIをモック確認。'}
+];
+
+/* ── BUILD FUNNEL HTML ─────────────────────────────────────── */
+function initTargetFunnel(){
+  var wiz = document.getElementById('funnel-wizard');
+  var panel = document.getElementById('funnel-panel');
+  if(!wiz || !panel) return;
+
+  wiz.innerHTML = fBuildWizardHTML();
+  panel.innerHTML = fBuildPanelHTML();
+  fUpdateAll();
+}
+
+function fBuildWizardHTML(){
+  return '<div>'
+    + '<div style="margin-bottom:20px;padding:14px 0 10px;border-bottom:1px solid var(--border);">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
+    + '<p style="font-size:18px;font-weight:800;color:var(--text);margin:0;">ターゲットを設定</p>'
+    + '<button onclick="fToggleSavedPanel()" id="fs-saved-toggle" style="font-size:12px;padding:5px 13px;background:var(--bg);border:1px solid var(--border);color:var(--blue);cursor:pointer;border-radius:20px;font-family:inherit;font-weight:500;">📁 保存済み案件</button>'
+    + '</div>'
+    + '<p style="font-size:13px;color:var(--muted);margin:0;">誰に・どんな変化を起こしたいかを決めてからエージェントが推奨されます</p>'
+    + '</div>'
+    + '<div id="fs-saved-panel" style="display:none;margin-bottom:16px;padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+    + '<p style="font-size:13px;font-weight:700;color:var(--text);margin:0;">保存済み案件</p>'
+    + '<span style="font-size:11px;color:var(--muted);">クリックで設定を復元</span>'
+    + '</div>'
+    + '<div id="fsaved-chips"></div>'
+    + '</div>'
+    + fStep(1, '商品・サービス（任意）', true,
+        '<input id="fs-prod" type="text" placeholder="例：中古車買取、生命保険、SaaS、健康食品…" style="width:100%;font-size:13px;background:var(--panel);border:0.5px solid var(--border2);color:var(--text);padding:9px 12px;outline:none;font-family:var(--sans);" oninput="FS.product=this.value;fUpdateAll()"/>')
+    + fStep(2, '誰に届けたいか', true,
+        '<p style="font-size:10px;color:var(--muted);margin:0 0 5px;">年代</p>'
+        + fTagGroup('age', ['10-20代','30代','40代','50代','60代以上'])
+        + '<p style="font-size:10px;color:var(--muted);margin:9px 0 5px;">性別</p>'
+        + fTagGroup('gender', ['女性','男性','問わない'])
+        + '<p style="font-size:10px;color:var(--muted);margin:9px 0 5px;">ライフステージ・ライフイベント（複数可）</p>'
+        + fTagGroup('life', ['学生','社会人独身','子育て中','シニア','退職・セカンドキャリア','法人担当者'])
+        + '<p style="font-size:10px;color:var(--dim);margin:8px 0 5px;font-weight:600;letter-spacing:.04em;">── ライフイベント（任意）</p>'
+        + fTagGroup('life', ['就職・転職','起業・副業開始','結婚','妊娠・出産','子の幼稚園・小学校入学','子の中学・高校入学','子の大学進学','子の独立・巣立ち','離婚','死別・相続'])
+        + fTagGroup('life', ['住宅購入・マンション購入','住宅リフォーム','引越し','車購入・買替え','車売却','親の介護','自身の病気・入院','資産運用・投資開始','海外移住・帰国'])
+        + '<p style="font-size:10px;color:var(--muted);margin:9px 0 5px;">エリア</p>'
+        + '<div style="display:flex;gap:4px;flex-wrap:wrap;">'
+        + ['首都圏','関西圏','東海圏','その他地方','全国'].map(function(v){
+            return '<button class="frbn" data-v="'+v+'" onclick="fToggleReg(this)">'+v+'</button>';
+          }).join('')
+        + '</div>')
+    + fStep(3, '今どこにいる人に話しかけますか？', true,
+        '<div id="fs-frows">'
+        + FS_AIDMA.map(function(a){
+            return '<div class="frow" data-p="'+a.p+'" onclick="fSelPhase(this)">'
+              + '<div class="frow-l"><div style="width:9px;height:9px;border-radius:50%;background:'+a.color+';flex-shrink:0;"></div>'
+              + '<div><span style="font-size:12px;font-weight:500;">'+a.label+'</span><span style="font-size:10px;color:var(--muted);margin-left:7px;">'+a.sub+'</span></div></div>'
+              + '<div class="frow-p" id="fs-fp-'+a.p+'">—</div></div>';
+          }).join('')
+        + '</div>')
+    + fStep(4, 'どんな変化を起こしたいですか？', false,
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">'
+        + [['知ってもらう','認知・接触'],['興味を持たせる','態度変容'],['選んでもらう','CV・購買促進'],['ファンにする','継続・LTV向上']].map(function(c){
+            return '<div class="fchg" data-v="'+c[0]+'" onclick="fSelChg(this)">'
+              + '<p style="font-size:12px;font-weight:500;margin:0 0 2px;">'+c[0]+'</p>'
+              + '<p style="font-size:10px;color:var(--muted);margin:0;">'+c[1]+'</p></div>';
+          }).join('')
+        + '<div class="fchg" data-v="行動パターンを変える" onclick="fSelChg(this)" style="grid-column:1/-1;">'
+        + '<p style="font-size:12px;font-weight:500;margin:0 0 2px;">行動パターンを変える</p>'
+        + '<p style="font-size:10px;color:var(--muted);margin:0;">習慣変容・ライフスタイル変化</p></div>'
+        + '</div>'
+        + '<div style="margin-top:14px;display:flex;gap:8px;">'
+        + '<button onclick="fSaveUI()" style="flex:1;font-size:12px;padding:8px;">この条件を保存</button>'
+        + '<button id="fs-start-btn" onclick="fStartChat()" style="display:none;flex:2;font-size:13px;padding:10px 20px;background:var(--blue);color:white;border:none;cursor:pointer;border-radius:8px;font-weight:700;box-shadow:0 2px 8px rgba(26,95,217,.28);letter-spacing:.02em;">エージェントを選ぶ →</button>'
+        + '</div>'
+        + '<div id="fs-save-ui" style="display:none;margin-top:10px;padding:11px;border:0.5px solid var(--border);border-radius:5px;">'
+        + '<p style="font-size:11px;color:var(--muted);margin:0 0 7px;">名前をつけて保存</p>'
+        + '<div style="display:flex;gap:7px;"><input id="fs-save-name" type="text" placeholder="例：60代リースバック検討層" style="flex:1;font-size:12px;background:var(--bg);border:0.5px solid var(--border2);color:var(--text);padding:7px 10px;outline:none;font-family:var(--sans);"/>'
+        + '<button onclick="fDoSave()" style="font-size:12px;padding:7px 14px;">保存</button></div></div>'
+        + '<div id="fs-agents" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;"></div>')
+    + '</div>';
+}
+
+function fStep(n, label, hasLine, body){
+  return '<div style="display:flex;gap:11px;margin-bottom:18px;position:relative;">'
+    + '<div style="position:relative;z-index:1;">'
+    + '<div class="fsnum" style="background:var(--blue-dim);color:var(--blue);">'+n+'</div>'
+    + (hasLine ? '<div class="fvl"></div>' : '')
+    + '</div>'
+    + '<div style="flex:1;padding-top:3px;">'
+    + '<p style="font-size:11px;color:var(--muted);margin:0 0 9px;">'+label+'</p>'
+    + body
+    + '</div></div>';
+}
+
+function fTagGroup(g, vals){
+  return '<div style="display:flex;gap:4px;flex-wrap:wrap;">'
+    + vals.map(function(v){
+        return '<button class="ftag" data-g="'+g+'" data-v="'+v+'" onclick="fToggle(this)">'+v+'</button>';
+      }).join('')
+    + '</div>';
+}
+
+function fBuildPanelHTML(){
+  return '<div style="border:0.5px solid var(--border);border-radius:8px;overflow:hidden;">'
+    + '<div style="display:flex;border-bottom:0.5px solid var(--border);padding:0 2px;">'
+    + '<button class="ftab-btn on" id="ftab-data" onclick="fShowTab(\'data\')">📊 人口データ</button>'
+    + '<button class="ftab-btn" id="ftab-comp" onclick="fShowTab(\'comp\')">🏢 競合</button>'
+    + '<button class="ftab-btn" id="ftab-ins" onclick="fShowTab(\'ins\')">📋 DI調査</button>'
+    + '</div>'
+    + '<div id="fpanel-data" style="padding:11px 13px;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;">'
+    + '<p style="font-size:10px;color:var(--muted);margin:0;">推計対象人口</p>'
+    + '<span class="fb2">総務省 人口推計 2023年</span></div>'
+    + '<div style="display:flex;align-items:baseline;gap:3px;margin:3px 0 2px;">'
+    + '<span id="fs-pnum" style="font-size:26px;font-weight:500;">—</span>'
+    + '<span id="fs-punit" style="font-size:12px;color:var(--muted);">万人</span></div>'
+    + '<p id="fs-psub" style="font-size:10px;color:var(--muted);margin:0 0 12px;">条件を選ぶと表示されます</p>'
+    + '<p style="font-size:10px;color:var(--muted);margin:0 0 6px;">エリア別</p>'
+    + '<div id="fs-reg-bd"></div>'
+    + '<p style="font-size:10px;color:var(--muted);margin:10px 0 6px;">年代別</p>'
+    + '<div id="fs-age-bd"></div>'
+    + '<div id="fs-life-bd-wrap" style="display:none;">'
+    + '<p style="font-size:10px;color:var(--muted);margin:10px 0 6px;">ライフイベント別（年間推計）</p>'
+    + '<div id="fs-life-bd"></div>'
+    + '</div>'
+    + '<div id="fs-fred-panel" style="display:none;">'
+    + '<p style="font-size:10px;color:var(--muted);margin:10px 0 6px;">フェーズ別（業界平均比率）</p>'
+    + '<div id="fs-fred-rows"></div></div>'
+    + '</div>'
+    + '<div id="fpanel-comp" style="display:none;padding:11px 13px;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+    + '<p style="font-size:10px;color:var(--muted);margin:0;">選択条件に近い競合</p>'
+    + '<span class="fb1">1次データ</span></div>'
+    + '<div id="fs-comp-list"></div>'
+    + '<p id="fs-comp-empty" style="font-size:11px;color:var(--muted);line-height:1.6;">商品名を入力するか年代・フェーズを選ぶと競合が表示されます。</p>'
+    + '</div>'
+    + '<div id="fpanel-ins" style="display:none;padding:11px 13px;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+    + '<p style="font-size:10px;color:var(--muted);margin:0;">DI過去調査インサイト</p>'
+    + '<span class="fb1">1次データ</span></div>'
+    + '<div id="fs-ins-list"></div>'
+    + '</div>'
+    + '</div>';
+}
+
+/* ── INTERACTIONS ─────────────────────────────────────────── */
+function fToggle(btn){
+  var g=btn.dataset.g,v=btn.dataset.v;
+  if(btn.classList.contains('on')){btn.classList.remove('on');FS[g]=FS[g].filter(function(x){return x!==v;});}
+  else{btn.classList.add('on');FS[g]=FS[g].concat([v]);}
+  fUpdateAll();
+}
+function fToggleReg(btn){
+  var v=btn.dataset.v;
+  if(btn.classList.contains('on')){btn.classList.remove('on');FS.region=FS.region.filter(function(x){return x!==v;});}
+  else{btn.classList.add('on');FS.region=FS.region.concat([v]);}
+  fUpdateAll();
+}
+function fSelPhase(row){
+  var p = row.dataset.p;
+  if(row.classList.contains('on')){
+    row.classList.remove('on');
+    FS.phases = FS.phases.filter(function(x){return x!==p;});
+  } else {
+    row.classList.add('on');
+    FS.phases = FS.phases.concat([p]);
+  }
+  fUpdateAll();
+}
+function fSelChg(el){
+  document.querySelectorAll('.fchg').forEach(function(e){e.classList.remove('on');});
+  el.classList.add('on');FS.change=el.dataset.v;fUpdateAll();
+}
+function fShowTab(t){
+  FS_TAB=t;
+  ['data','comp','ins'].forEach(function(id){
+    document.getElementById('fpanel-'+id).style.display=id===t?'block':'none';
+    document.getElementById('ftab-'+id).classList.toggle('on',id===t);
+  });
+  if(t==='comp')fBuildComp();
+  if(t==='ins')fBuildIns();
+}
+
+/* ── CALC ─────────────────────────────────────────────────── */
+function fCalcBase(){
+  var agePop=0,hasAge=FS.age.length>0,hasLife=FS.life.length>0;
+  var allPop=Object.values(FS_AGE).reduce(function(s,a){return s+a.t;},0);
+  if(!hasAge&&!hasLife&&!FS.region.length)return null;
+  if(hasAge){
+    FS.age.forEach(function(ak){var a=FS_AGE[ak];if(!a)return;
+      if(FS.gender.length&&!FS.gender.includes('問わない')){
+        if(FS.gender.includes('男性'))agePop+=a.m;
+        if(FS.gender.includes('女性'))agePop+=a.f;
+      }else agePop+=a.t;
+    });
+    if(hasLife){var lr=FS.life.reduce(function(s,l){return s+(FS_LIFE[l]||0);},0)/allPop;agePop=Math.round(agePop*Math.min(lr,1));}
+  }else if(hasLife){
+    agePop=FS.life.reduce(function(s,l){return s+(FS_LIFE[l]||0);},0);
+    if(FS.gender.length&&!FS.gender.includes('問わない'))agePop=Math.round(agePop*0.5);
+  }else agePop=allPop;
+  if(FS.region.length&&!FS.region.includes('全国')){
+    var rp=FS.region.reduce(function(s,rk){var r=FS_REGS.find(function(x){return x.k===rk;});return s+(r?r.pct:0);},0);
+    agePop=Math.round(agePop*rp/100);
+  }
+  return Math.max(1,Math.round(agePop));
+}
+
+function fFmt(n){return n>=1000?(Math.round(n/10)/100).toFixed(1)+'千':n.toLocaleString();}
+
+function fBuildCond(){
+  var p=[];
+  if(FS.age.length)p.push(FS.age.join('・'));
+  if(FS.gender.length&&!FS.gender.includes('問わない'))p.push(FS.gender.join('・'));
+  if(FS.life.length)p.push(FS.life.join('・'));
+  if(FS.region.length)p.push(FS.region.join('・'));
+  return p.length?p.join(' × '):'全体推計';
+}
+
+/* ── UPDATE ALL ───────────────────────────────────────────── */
+function fUpdateAll(){
+  var base=fCalcBase();
+  // funnel phase pops
+  FS_AIDMA.forEach(function(a){
+    var el=document.getElementById('fs-fp-'+a.p);
+    if(el)el.textContent=base?fFmt(Math.round(base*a.r))+'万':'—';
+  });
+  // main number
+  var ph=FS.phases&&FS.phases.length?FS_AIDMA.find(function(a){return a.p===FS.phases[0];}):null;
+  var disp=base?(ph?Math.round(base*ph.r):base):null;
+  var pnum=document.getElementById('fs-pnum');var punit=document.getElementById('fs-punit');var psub=document.getElementById('fs-psub');
+  if(pnum)pnum.textContent=disp?fFmt(disp):'—';
+  if(punit)punit.textContent=disp?'万人':'';
+  var phLabels=(FS.phases||[]).map(function(p){var a=FS_AIDMA.find(function(x){return x.p===p;});return a?a.sub:'';}).filter(Boolean);
+  if(psub)psub.textContent=fBuildCond()+(phLabels.length?' ('+phLabels.join('・')+')':'');
+  // breakdowns
+  fBuildRegBd(base);fBuildAgeBd(base);fBuildLifeBd(base);
+  var fp=document.getElementById('fs-fred-panel');
+  if(fp){if(base){fp.style.display='block';fBuildFredRows(base);}else fp.style.display='none';}
+  // comp/ins tabs
+  if(FS_TAB==='comp')fBuildComp();
+  if(FS_TAB==='ins')fBuildIns();
+  // result / agents
+  var hasAny=FS.age.length||FS.life.length;
+  var sbtn=document.getElementById('fs-start-btn');
+  if(sbtn)sbtn.style.display='block';
+  var achips=document.getElementById('fs-agents');
+  if(achips){
+    achips.innerHTML='';
+    if(hasAny&&FS.phases.length){
+      var agentIds=[];
+      FS.phases.forEach(function(p){(FS_AGENT_MAP[p]||[]).forEach(function(id){if(agentIds.indexOf(id)<0)agentIds.push(id);});});
+      agentIds.slice(0,5).forEach(function(id){
+        var a=AGENTS.find(function(x){return x.id===id;});if(!a)return;
+        var s=document.createElement('span');
+        s.style.cssText='font-size:11px;padding:3px 9px;background:var(--amber-dim);color:var(--amber);border-radius:100px;cursor:pointer;margin:0 4px 4px 0;display:inline-block;';
+        s.textContent=a.icon+' '+a.name;
+        s.onclick=function(){fLaunch(id);};
+        achips.appendChild(s);
+      });
+    }
+  }
+}
+
+function fBuildRegBd(base){
+  var d=document.getElementById('fs-reg-bd');if(!d)return;var html='';
+  FS_REGS.forEach(function(r){
+    var isSel=!FS.region.length||FS.region.includes('全国')||FS.region.includes(r.k);
+    var est=base?fFmt(Math.round(base*r.pct/100))+'万':'—';
+    html+='<div class="fseg"><div style="flex:1;">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
+      +'<span style="font-size:10px;color:'+(isSel?'var(--text)':'var(--muted)')+';">'+r.k+'</span>'
+      +'<span style="font-size:10px;color:var(--muted);">'+est+'</span></div>'
+      +'<div style="height:3px;background:var(--panel);border-radius:2px;"><div style="height:100%;width:'+r.pct+'%;background:'+(isSel?'var(--blue)':'var(--dim)')+';border-radius:2px;"></div></div>'
+      +'<span style="font-size:9px;color:var(--dim);">'+r.desc+' ('+r.pct+'%)</span>'
+      +'</div></div>';
+  });
+  d.innerHTML=html;
+}
+
+function fBuildAgeBd(base){
+  var d=document.getElementById('fs-age-bd');if(!d)return;
+  var ages=[{k:'10-20代',t:2240},{k:'30代',t:1350},{k:'40代',t:1650},{k:'50代',t:1620},{k:'60代以上',t:4150}];
+  var mx=4150;var html='';
+  ages.forEach(function(a){
+    var isSel=FS.age.includes(a.k)||FS.age.length===0;
+    html+='<div class="fseg"><div style="flex:1;">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
+      +'<span style="font-size:10px;color:'+(isSel?'var(--text)':'var(--muted)')+';">'+a.k+'</span>'
+      +'<span style="font-size:10px;color:var(--muted);">'+a.t.toLocaleString()+'万</span></div>'
+      +'<div style="height:3px;background:var(--panel);border-radius:2px;"><div style="height:100%;width:'+Math.round(a.t/mx*100)+'%;background:'+(isSel?'var(--blue)':'var(--dim)')+';border-radius:2px;"></div></div>'
+      +'</div></div>';
+  });
+  d.innerHTML=html;
+}
+
+function fBuildFredRows(base){
+  var d=document.getElementById('fs-fred-rows');if(!d)return;var html='';
+  FS_AIDMA.forEach(function(a){
+    var n=Math.round(base*a.r);var isSel=FS.phases.indexOf(a.p)>=0;
+    html+='<div style="margin-bottom:5px;">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
+      +'<span style="font-size:10px;color:'+(isSel?'var(--text)':'var(--muted)')+';">'+a.label+'</span>'
+      +'<span style="font-size:10px;font-weight:'+(isSel?500:400)+';color:var(--muted);">'+fFmt(n)+'万人</span></div>'
+      +'<div style="height:4px;background:var(--panel);border-radius:2px;"><div style="height:100%;width:'+Math.round(a.r*100)+'%;background:'+(isSel?'var(--blue)':a.color)+';border-radius:2px;transition:width .3s;"></div></div>'
+      +'</div>';
+  });
+  d.innerHTML=html;
+}
+
+function fScoreComp(c){
+  var ctx=FS.age.concat(FS.life||[]).concat([FS.product,(FS.phases||[]).join(',')||'']);
+  var sc=0;
+  c.tags.forEach(function(t){ctx.forEach(function(v){if(v&&v.indexOf(t)>=0)sc+=3;});});
+  if(c.age)c.age.forEach(function(a){if(FS.age.includes(a))sc+=2;});
+  if(c.life)c.life.forEach(function(l){if(FS.life.includes(l))sc+=2;});
+  return sc;
+}
+
+function fBuildComp(){
+  var list=document.getElementById('fs-comp-list');var empty=document.getElementById('fs-comp-empty');if(!list)return;
+  var scored=FS_COMPS.map(function(c){return{c:c,sc:fScoreComp(c)};}).filter(function(x){return x.sc>0;}).sort(function(a,b){return b.sc-a.sc;});
+  if(!scored.length){list.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  var html='';
+  scored.slice(0,2).forEach(function(item){
+    var grp=item.c;
+    html+='<p style="font-size:10px;color:var(--muted);margin:0 0 5px;">'+grp.tags[0]+' カテゴリ</p>';
+    grp.items.forEach(function(comp){
+      var isSel=comp.phase&&FS.phases.length&&comp.phase.indexOf(FS.phases[0].charAt(0))>=0;
+      html+='<div class="fcomp-card'+(isSel?' hi':'')+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">'
+        +'<span style="font-size:12px;font-weight:500;color:var(--text);">'+comp.name+'</span>'
+        +(comp.share?'<span style="font-size:10px;padding:1px 6px;background:var(--panel);color:var(--muted);border-radius:3px;">シェア '+comp.share+'</span>':'')
+        +(isSel?'<span style="font-size:9px;padding:1px 5px;background:var(--amber-dim);color:var(--amber);border-radius:3px;margin-left:3px;">同フェーズ</span>':'')
+        +'</div>'
+        +'<p style="font-size:11px;color:var(--muted);margin:0 0 3px;line-height:1.5;">'+comp.note+'</p>'
+        +'<div style="display:flex;justify-content:space-between;">'
+        +'<span style="font-size:9px;color:var(--dim);">注力フェーズ：'+comp.phase+'</span>'
+        +'<span style="font-size:9px;color:var(--dim);">出典：'+comp.src+'</span>'
+        +'</div></div>';
+    });
+    html+='<div style="height:10px;"></div>';
+  });
+  list.innerHTML=html;
+}
+
+function fBuildIns(){
+  var d=document.getElementById('fs-ins-list');if(!d)return;
+  var ctx=FS.age.concat(FS.life||[]).concat([FS.product]);
+  var scored=FS_INS.map(function(ins){
+    var sc=0;
+    ins.tags.forEach(function(t){ctx.forEach(function(v){if(v&&v.indexOf(t)>=0)sc+=3;});});
+    if(ins.age)ins.age.forEach(function(a){if(FS.age.includes(a))sc+=2;});
+    if(ins.life)ins.life.forEach(function(l){if(FS.life.includes(l))sc+=2;});
+    return{ins:ins,sc:sc};
+  }).sort(function(a,b){return b.sc-a.sc;});
+  var html='';
+  scored.slice(0,4).forEach(function(item){
+    var isMatch=item.sc>0;
+    html+='<div class="fins-card" style="'+(isMatch?'':'opacity:0.5')+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;">'
+      +'<span style="font-size:10px;font-weight:500;color:var(--muted);flex:1;line-height:1.4;">'+item.ins.badge+'</span>'
+      +(isMatch?'<span style="font-size:9px;padding:1px 5px;background:var(--green-dim);color:var(--green);border-radius:3px;margin-left:4px;flex-shrink:0;">関連あり</span>':'')
+      +'</div>'
+      +'<p style="font-size:11px;color:var(--muted);margin:0;line-height:1.55;">'+item.ins.text+'</p>'
+      +'</div>';
+  });
+  d.innerHTML=html||'<p style="font-size:11px;color:var(--muted);">条件を選ぶと関連する調査が表示されます。</p>';
+}
+
+/* ── SAVE ─────────────────────────────────────────────────── */
+function fSaveUI(){
+  var ui=document.getElementById('fs-save-ui');
+  if(ui)ui.style.display=ui.style.display==='none'?'block':'none';
+}
+
+function fToggleSavedPanel(){
+  var p=document.getElementById('fs-saved-panel');
+  var btn=document.getElementById('fs-saved-toggle');
+  if(!p)return;
+  var open=p.style.display!=='none';
+  p.style.display=open?'none':'block';
+  if(btn)btn.style.background=open?'var(--bg)':'var(--blue-dim)';
+  if(!open)fRenderSaved();
+}
+function fDoSave(){
+  var nameEl=document.getElementById('fs-save-name');
+  var name=(nameEl?nameEl.value.trim():'')||'ターゲット '+(FS_SAVED.length+1);
+  var phases=FS.phases.map(function(p){var a=FS_AIDMA.find(function(x){return x.p===p;});return a?a.label:'';}).filter(Boolean);
+  FS_SAVED.push({
+    id: Date.now(),
+    name: name,
+    state: JSON.parse(JSON.stringify(FS)),
+    cond: fBuildCond(),
+    phases: phases,
+    product: FS.product||'',
+    change: FS.change||'',
+    savedAt: new Date().toISOString()
+  });
+  if(nameEl)nameEl.value='';
+  var ui=document.getElementById('fs-save-ui');if(ui)ui.style.display='none';
+  fPersist();
+  fRenderSaved();
+  fShowSaveToast(name);
+}
+function fShowSaveToast(name){
+  var t=document.getElementById('fs-toast');
+  if(!t)return;
+  t.textContent='「'+name+'」を保存しました';
+  t.style.opacity='1';t.style.transform='translateY(0)';
+  setTimeout(function(){t.style.opacity='0';t.style.transform='translateY(8px)';},2200);
+}
+function fRenderSaved(){
+  var bar=document.getElementById('fsaved-bar');
+  var chips=document.getElementById('fsaved-chips');
+  if(!bar||!chips)return;
+  bar.style.display='block';
+  if(!FS_SAVED.length){
+    chips.innerHTML='<p style="font-size:12px;color:var(--muted);padding:4px 0;margin:0;">保存済みの案件はまだありません。</p>';
+    return;
+  }
+  chips.innerHTML='';
+  FS_SAVED.forEach(function(sv,i){
+    var isActive=(JSON.stringify(FS)===JSON.stringify(sv.state));
+    var d=new Date(sv.savedAt);
+    var dateStr=d.getMonth()+1+'/'+d.getDate();
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;transition:all .15s;border:1.5px solid '+(isActive?'var(--blue)':'var(--border)')+';background:'+(isActive?'var(--blue-dim)':'var(--surface)')+';margin-bottom:5px;';
+    el.onmouseover=function(){if(!isActive)this.style.borderColor='var(--blue)';};
+    el.onmouseout=function(){if(!isActive)this.style.borderColor='var(--border)';};
+    el.innerHTML=''
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">'
+          +'<span style="font-size:13px;font-weight:600;color:'+(isActive?'var(--blue)':'var(--text)')+';">'+esc(sv.name)+'</span>'
+          +(isActive?'<span style="font-size:9px;padding:1px 6px;background:var(--blue);color:#fff;border-radius:10px;">使用中</span>':'')
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+          +(sv.product?'<span style="color:var(--text);font-weight:500;">'+esc(sv.product)+'</span>・':'')
+          +esc(sv.cond.substring(0,30))
+        +'</div>'
+        +(sv.phases&&sv.phases.length?'<div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap;">'
+          +sv.phases.map(function(p){return '<span style="font-size:10px;padding:1px 6px;background:var(--amber-dim);color:var(--amber);border-radius:10px;">'+esc(p)+'</span>';}).join('')
+          +'</div>':'')
+      +'</div>'
+      +'<span style="font-size:10px;color:var(--muted);flex-shrink:0;">'+dateStr+'</span>'
+      +'<button onclick="fRemoveSaved('+i+');event.stopPropagation();" style="font-size:14px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;" title="削除">×</button>';
+    el.onclick=function(){fRestoreSaved(i);};
+    chips.appendChild(el);
+  });
+}
+function fRestoreSaved(i){
+  FS=JSON.parse(JSON.stringify(FS_SAVED[i].state));
+  initTargetFunnel();
+  FS.age.forEach(function(v){var b=document.querySelector('.ftag[data-g="age"][data-v="'+v+'"]');if(b)b.classList.add('on');});
+  FS.gender.forEach(function(v){var b=document.querySelector('.ftag[data-g="gender"][data-v="'+v+'"]');if(b)b.classList.add('on');});
+  FS.life.forEach(function(v){var b=document.querySelector('.ftag[data-g="life"][data-v="'+v+'"]');if(b)b.classList.add('on');});
+  FS.region.forEach(function(v){var b=document.querySelector('.frbn[data-v="'+v+'"]');if(b)b.classList.add('on');});
+  (FS.phases||[]).forEach(function(p){var r=document.querySelector('.frow[data-p="'+p+'"]');if(r)r.classList.add('on');});
+  if(FS.change){var c=document.querySelector('.fchg[data-v="'+FS.change+'"]');if(c)c.classList.add('on');}
+  var prod=document.getElementById('fs-prod');if(prod)prod.value=FS.product||'';
+  fUpdateAll();fRenderSaved();
+}
+function fRemoveSaved(i){FS_SAVED.splice(i,1);fPersist();fRenderSaved();}
+
+/* ── LAUNCH CHAT ──────────────────────────────────────────── */
+function fLaunch(agentId){
+  // Store target context so buildContext() picks it up
+  S.ctx._funnelTarget = fBuildTargetDesc();
+  openAgent(agentId);
+}
+function fStartChat(){
+  showAgentsView();
+}
+function fBuildTargetDesc(){
+  var p=[];
+  if(FS.product)p.push('商品・サービス：'+FS.product);
+  if(FS.age.length)p.push('年代：'+FS.age.join('・'));
+  if(FS.gender.length&&!FS.gender.includes('問わない'))p.push('性別：'+FS.gender.join('・'));
+  if(FS.life.length)p.push('ライフステージ：'+FS.life.join('・'));
+  if(FS.region.length)p.push('エリア：'+FS.region.join('・'));
+  var phs=FS.phases.map(function(p){var a=FS_AIDMA.find(function(x){return x.p===p;});return a?a.label+'（'+a.sub+'）':'';}).filter(Boolean);
+  if(phs.length)p.push('AIDMAフェーズ：'+ph.label+'（'+ph.sub+'）');
+  if(FS.change)p.push('目的変容：'+FS.change);
+  return p.join('\n');
+}
+
+
+
+
+function fBuildLifeBd(base){
+  var wrap=document.getElementById('fs-life-bd-wrap');
+  var d=document.getElementById('fs-life-bd');
+  if(!wrap||!d) return;
+  var events=['就職・転職','結婚','妊娠・出産','子の大学進学','住宅購入・マンション購入','車購入・買替え','退職・セカンドキャリア','親の介護','離婚','死別・相続'];
+  var selected=FS.life.filter(function(l){return FS_LIFE[l]!==undefined && events.indexOf(l)>=0;});
+  if(!selected.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  var html='';
+  selected.forEach(function(l){
+    var pop=FS_LIFE[l]||0;
+    var maxPop=600;
+    var w=Math.round(Math.min(pop/maxPop,1)*100);
+    html+='<div class="fseg"><div style="flex:1;">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
+      +'<span style="font-size:11px;color:var(--text);font-weight:500;">'+l+'</span>'
+      +'<span style="font-size:11px;color:var(--muted);">年間約'+pop+'万人</span>'
+      +'</div>'
+      +'<div style="height:4px;background:var(--panel);border-radius:2px;"><div style="height:100%;width:'+w+'%;background:var(--amber);border-radius:2px;"></div></div>'
+      +'</div></div>';
+  });
+  d.innerHTML=html;
+}
+
+/* ============================================================
+   TARGET SAVE / LOAD  (localStorage永続化)
+============================================================ */
+var FS_STORE_KEY = 'di_targets_v1';
+
+function fLoadSaved(){
+  try{
+    var raw = localStorage.getItem(FS_STORE_KEY);
+    if(raw) FS_SAVED = JSON.parse(raw);
+  }catch(e){ FS_SAVED = []; }
+  fRenderSaved();
+}
+
+function fPersist(){
+  try{ localStorage.setItem(FS_STORE_KEY, JSON.stringify(FS_SAVED)); }catch(e){}
+}
+
+</script>
+</body>
+</html>
