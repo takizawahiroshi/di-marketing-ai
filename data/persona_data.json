@@ -1,0 +1,117 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-04-16",
+  "description": "ターゲットウィザード用のベースペルソナ集。UI から選択すると context.persona にロードされる。",
+  "personas": [
+    {
+      "id": "f30_worker",
+      "label": "30代女性・会社員",
+      "age": 32,
+      "gender": "female",
+      "occupation": "都内 IT 企業の広報・マーケティング職",
+      "household": "独身・一人暮らし（東京都世田谷区）",
+      "income": "年収 520 万円",
+      "values": ["時短重視", "体験価値", "サステナビリティ", "自己投資"],
+      "media": ["Instagram", "Voicy", "note", "YouTube（通勤）"],
+      "pain_points": [
+        "仕事と自己研鑽の両立で時間がない",
+        "同世代の SNS 発信と自分を比較してしまう",
+        "コスメ・健康・金融など選択肢が多すぎて決めきれない"
+      ],
+      "purchase_triggers": [
+        "信頼できる第三者レビュー（Voicy・YouTuber）",
+        "期間限定のコラボ・体験型コンテンツ",
+        "友人の Instagram ストーリーズ"
+      ],
+      "quote": "良さそうなのは山ほどあるけど、自分に合うものを自分で選ぶ自信がないんです。"
+    },
+    {
+      "id": "m40_manager",
+      "label": "40代男性・管理職",
+      "age": 44,
+      "gender": "male",
+      "occupation": "製造業中堅企業の営業マネージャー（首都圏勤務）",
+      "household": "既婚・子ども2人（小学校高学年・中学生）",
+      "income": "世帯年収 1,080 万円",
+      "values": ["家族との時間", "キャリア停滞への危機感", "実績主義", "効率"],
+      "media": ["日経電子版", "X（情報収集）", "YouTube（休日）", "書籍"],
+      "pain_points": [
+        "部下育成と数字責任の板挟み",
+        "DX/AI に乗り遅れている焦り",
+        "家族との時間が減っている罪悪感"
+      ],
+      "purchase_triggers": [
+        "業界誌の特集・事例記事",
+        "同業他社の成功事例",
+        "短時間で学べる動画・書籍"
+      ],
+      "quote": "若手に追い越されないように、でも無理して疲弊もしたくない。"
+    },
+    {
+      "id": "m20_student",
+      "label": "20代男性・学生",
+      "age": 22,
+      "gender": "male",
+      "occupation": "私立大学 4 年生（文系、Web 系スタートアップでインターン中）",
+      "household": "一人暮らし（下宿）",
+      "income": "月収 8 万円（アルバイト + インターン）",
+      "values": ["コスパ", "挑戦", "個性", "コミュニティ"],
+      "media": ["TikTok", "X", "YouTube Shorts", "Discord"],
+      "pain_points": [
+        "就活と自分のやりたいことのミスマッチ",
+        "将来のお金への漠然とした不安",
+        "情報過多で何が正解か分からない"
+      ],
+      "purchase_triggers": [
+        "TikTok / YouTube Shorts のバズ",
+        "友人の推薦（LINE / Discord）",
+        "サブスク・学割での試しやすさ"
+      ],
+      "quote": "サークル仲間と差別化したい、でも浮きたくもない。"
+    },
+    {
+      "id": "f50_housewife",
+      "label": "50代女性・専業主婦",
+      "age": 53,
+      "gender": "female",
+      "occupation": "専業主婦（夫は会社員、子どもは独立）",
+      "household": "夫婦2人（地方都市、持ち家）",
+      "income": "世帯年収 780 万円",
+      "values": ["健康", "家族との時間", "節約志向", "地域コミュニティ"],
+      "media": ["テレビ（情報番組）", "Instagram", "LINE（家族・友人）", "折込チラシ"],
+      "pain_points": [
+        "親の介護と自分の健康への不安",
+        "子離れ後の生きがい探し",
+        "物価高・老後資金への心配"
+      ],
+      "purchase_triggers": [
+        "テレビ通販・情報番組",
+        "近所の友人口コミ",
+        "LINE公式アカウントのクーポン"
+      ],
+      "quote": "無駄遣いしたくはないけれど、自分へのご褒美も少しずつ。"
+    },
+    {
+      "id": "b2b_marketing_lead",
+      "label": "B2B SaaS・マーケティング責任者",
+      "age": 38,
+      "gender": "any",
+      "occupation": "国内 B2B SaaS（従業員 150 名規模）のマーケティング責任者",
+      "household": "既婚・子ども1人",
+      "income": "年収 950 万円",
+      "values": ["データドリブン", "ROI", "組織横断連携", "キャリア成長"],
+      "media": ["Linear", "Slack", "Twitter（X）", "Substack", "業界 Podcast"],
+      "pain_points": [
+        "リード獲得のコスト増・質の低下",
+        "営業とマーケの KPI 分断",
+        "経営層への ROI 説明責任"
+      ],
+      "purchase_triggers": [
+        "ピア企業の導入事例",
+        "ROI が数字で語られた記事",
+        "小さく試せる PoC 枠"
+      ],
+      "quote": "次の四半期で結果が出ないと、予算も人員も削られる。"
+    }
+  ]
+}

@@ -1,4 +1,185 @@
 {
   "version": "1.0",
-  "results": []
+  "results": [
+    {
+      "id": "task_36e20da33acb",
+      "timestamp": "2026-04-16T15:57:44.103515",
+      "goal": "ビックカメラで新しく売り出す洗濯機を認知させる広告の調査企画を立てて",
+      "context": {
+        "survey_len": 0,
+        "persona_len": 0,
+        "brief_len": 0
+      },
+      "plan": {
+        "agents": [
+          "grouin",
+          "strategy",
+          "activation",
+          "media"
+        ],
+        "reason": "まずグループ座談会AIで洗濯機購入者の本音・比較検討行動・認知経路を把握し、その調査結果をもとに戦略AIでターゲットと訴求軸を整理。次に施策プランニングAIで認知拡大に向けたフェーズ別施策を設計し、最後に広告メディアプランAIで最適な媒体配分を提案することで、調査から実行計画までの一貫した広告企画を構築します。"
+      },
+      "agent_results": [
+        {
+          "agent_id": "grouin",
+          "output_len": 2002,
+          "baton": ""
+        },
+        {
+          "agent_id": "strategy",
+          "output_len": 2170,
+          "baton": ""
+        },
+        {
+          "agent_id": "activation",
+          "output_len": 2313,
+          "baton": ""
+        },
+        {
+          "agent_id": "media",
+          "output_len": 2019,
+          "baton": ""
+        }
+      ],
+      "synthesis_len": 2530
+    },
+    {
+      "id": "task_a3a112617e82",
+      "timestamp": "2026-04-16T15:34:30.167607",
+      "goal": "test marketing goal",
+      "context": {
+        "survey_len": 0,
+        "persona_len": 0,
+        "brief_len": 0
+      },
+      "plan": {
+        "agents": [
+          "strategy"
+        ],
+        "reason": "プランナーエラーのためデフォルト選択: AuthenticationError(\"Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011Ca6z52Mu1ZuPxiqkpFsyE'}\")"
+      },
+      "agent_results": [
+        {
+          "agent_id": "strategy",
+          "output_len": 12,
+          "baton": ""
+        }
+      ],
+      "synthesis_len": 0
+    },
+    {
+      "id": "task_137220bff46d",
+      "timestamp": "2026-04-16T14:26:27.328828",
+      "goal": "売上停滞の原因を調査して改善策を提案してほしい",
+      "context": {
+        "survey_len": 0,
+        "persona_len": 0,
+        "brief_len": 0
+      },
+      "plan": {
+        "agents": [
+          "strategy"
+        ],
+        "reason": "プランナーエラーのためデフォルト選択: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', '"
+      },
+      "agent_results": [
+        {
+          "agent_id": "strategy",
+          "output_len": 12,
+          "baton": ""
+        }
+      ],
+      "synthesis_len": 0
+    },
+    {
+      "id": "task_a7023e938fd4",
+      "timestamp": "2026-04-16T14:13:54.943204",
+      "goal": "test marketing goal",
+      "context": {
+        "survey_len": 0,
+        "persona_len": 0,
+        "brief_len": 0
+      },
+      "plan": {
+        "agents": [
+          "strategy"
+        ],
+        "reason": "プランナーエラーのためデフォルト選択: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'm"
+      },
+      "agent_results": [
+        {
+          "agent_id": "strategy",
+          "output_len": 12,
+          "baton": ""
+        }
+      ],
+      "synthesis_len": 0
+    },
+    {
+      "id": "task_72e72f90be51",
+      "timestamp": "2026-04-16T14:11:25.162158",
+      "goal": "test marketing goal",
+      "context": {
+        "survey_len": 0,
+        "persona_len": 0,
+        "brief_len": 0
+      },
+      "plan": {
+        "agents": [
+          "strategy"
+        ],
+        "reason": "プランナーエラーのためデフォルト選択: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'm"
+      },
+      "agent_results": [
+        {
+          "agent_id": "strategy",
+          "output_len": 12,
+          "baton": ""
+        }
+      ],
+      "synthesis_len": 0
+    },
+    {
+      "id": "task_e7b7b033b428",
+      "timestamp": "2026-04-16T13:47:06.271129",
+      "goal": "ビックカメラにて新商品の発売（洗濯機）があります。小型の1人用です。認知率調査をしたく提案書を企画提案してください",
+      "context": {
+        "survey_len": 0,
+        "persona_len": 0,
+        "brief_len": 0
+      },
+      "plan": {
+        "agents": [
+          "depth",
+          "strategy",
+          "activation",
+          "digital"
+        ],
+        "reason": "まずdepthで1人暮らしターゲットの洗濯機購買本音・認知経路をインタビューで深掘りし、strategyで「誰に・何を・どう伝えるか」の戦略骨格を構築。その後activationで認知率向上に向けた短中期施策を設計し、最後にdigitalでSNS・デジタル広告を活用した認知拡大プランを具体化することで、提案書として一気通貫した内容に仕上げます。"
+      },
+      "agent_results": [
+        {
+          "agent_id": "depth",
+          "output_len": 12,
+          "baton": ""
+        },
+        {
+          "agent_id": "strategy",
+          "output_len": 12,
+          "baton": ""
+        },
+        {
+          "agent_id": "activation",
+          "output_len": 12,
+          "baton": ""
+        },
+        {
+          "agent_id": "digital",
+          "output_len": 12,
+          "baton": ""
+        }
+      ],
+      "synthesis_len": 0
+    }
+  ]
 }

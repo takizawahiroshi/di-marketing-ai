@@ -3,10 +3,14 @@
 Plan → Execute → Synthesize の3ステップを SSE ストリームとして実行する。
 """
 import json
+import logging
 import uuid
 from typing import AsyncGenerator
 from .planner import plan_task
 from .agent_runner import run_agent_stream, run_synthesis_stream, compress_context
+from .memory_store import save_result
+
+_log = logging.getLogger(__name__)
 
 
 def _task_id() -> str:
@@ -49,6 +53,7 @@ async def run_pipeline(
     try:
         plan = await plan_task(goal, context, forced_agents)
     except Exception as e:
+        _log.exception("plan step failed")
         yield await sse_event("error", {"message": f"プランニングに失敗しました: {e}"})
         return
 
@@ -68,6 +73,7 @@ async def run_pipeline(
                 full_text += token
                 yield await sse_event("token", {"agent_id": agent_id, "text": token})
         except Exception as e:
+            _log.exception("agent step failed agent_id=%s", agent_id)
             yield await sse_event("error", {"message": f"エージェント {agent_id} でエラー: {e}"})
             full_text = full_text or "(エラーのため出力なし)"
 
@@ -94,7 +100,21 @@ async def run_pipeline(
             synthesis += token
             yield await sse_event("synth_token", {"text": token})
     except Exception as e:
+        _log.exception("synth step failed")
         yield await sse_event("error", {"message": f"統合ステップでエラー: {e}"})
 
     yield await sse_event("synth_done", {"synthesis": synthesis})
+
+    try:
+        await save_result(
+            task_id=task_id,
+            goal=goal,
+            plan=plan,
+            results=results,
+            synthesis=synthesis,
+            context=context,
+        )
+    except Exception as e:
+        _log.warning("save_result failed: %s", e)
+
     yield await sse_event("complete", {"task_id": task_id})

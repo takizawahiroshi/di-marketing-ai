@@ -3,13 +3,21 @@
 anthropic SDK の streaming API を使用してトークンを非同期 yield する。
 """
 import asyncio
-import os
+import logging
 from typing import AsyncGenerator
 import anthropic
-from .agent_registry import build_agent_sys_prompt, AGENT_REGISTRY
+from .agent_registry import build_agent_sys_prompt, build_agent_sys_prompt_blocks, AGENT_REGISTRY
 from .knowledge_loader import get_knowledge_text
+from .models import ANTHROPIC_MODEL_MAIN, ANTHROPIC_MODEL_FAST
+from .retry import call_with_retry
 
-client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+_log = logging.getLogger(__name__)
+
+
+def _client() -> anthropic.AsyncAnthropic:
+    """呼び出し時に最新のAPIキーでクライアントを生成する（ダッシュボード更新に追従）"""
+    from .main import get_api_key
+    return anthropic.AsyncAnthropic(api_key=get_api_key())
 
 
 async def run_agent_stream(
@@ -22,19 +30,33 @@ async def run_agent_stream(
     エージェントを実行し、テキストトークンを非同期で yield する。
     anthropic SDK の stream() コンテキストマネージャを使用。
     """
-    sys_prompt = build_agent_sys_prompt(agent_id, context, chained_context)
+    sys_blocks = build_agent_sys_prompt_blocks(agent_id, context, chained_context)
     user_msg = f"【メインタスク】{goal}\n\n上記タスクに対して、最高品質のアウトプットを出してください。"
 
     max_tokens = AGENT_REGISTRY.get(agent_id, {}).get("max_tokens", 1800)
 
-    async with client.messages.stream(
-        model="claude-sonnet-4-6",
+    async with _client().messages.stream(
+        model=ANTHROPIC_MODEL_MAIN,
         max_tokens=max_tokens,
-        system=sys_prompt,
+        system=sys_blocks,
         messages=[{"role": "user", "content": user_msg}],
     ) as stream:
         async for text in stream.text_stream:
             yield text
+        try:
+            final = await stream.get_final_message()
+            u = getattr(final, "usage", None)
+            if u is not None:
+                _log.info(
+                    "agent=%s cache_read=%s cache_create=%s input=%s output=%s",
+                    agent_id,
+                    getattr(u, "cache_read_input_tokens", 0),
+                    getattr(u, "cache_creation_input_tokens", 0),
+                    getattr(u, "input_tokens", 0),
+                    getattr(u, "output_tokens", 0),
+                )
+        except Exception as e:
+            _log.debug("usage fetch skipped: %r", e)
 
 
 async def run_synthesis_stream(
@@ -53,18 +75,25 @@ async def run_synthesis_stream(
     combined = "\n\n".join(combined_parts)
 
     knowledge = get_knowledge_text(max_chars=3000)
-    sys_prompt = (
-        knowledge
-        + "\n\nあなたはDIのシンセサイザーAIです。"
-        "複数エージェントの出力を統合し、クライアントへの最終アウトプットとして整理してください。"
-        "重複を除き、論理的な順序で、アクションにつながる形でまとめてください。"
-        "マークダウン形式で見やすく構造化してください。"
-    )
+    # 静的部分（知識 + シンセサイザー役割）を cache_control でキャッシュ
+    sys_blocks = [
+        {
+            "type": "text",
+            "text": (
+                knowledge
+                + "\n\nあなたはDIのシンセサイザーAIです。"
+                "複数エージェントの出力を統合し、クライアントへの最終アウトプットとして整理してください。"
+                "重複を除き、論理的な順序で、アクションにつながる形でまとめてください。"
+                "マークダウン形式で見やすく構造化してください。"
+            ),
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
 
-    async with client.messages.stream(
-        model="claude-sonnet-4-6",
+    async with _client().messages.stream(
+        model=ANTHROPIC_MODEL_MAIN,
         max_tokens=2200,
-        system=sys_prompt,
+        system=sys_blocks,
         messages=[
             {
                 "role": "user",
@@ -103,14 +132,19 @@ async def compress_context(
 
     try:
         response = await asyncio.wait_for(
-            client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=180,
-                messages=[{"role": "user", "content": prompt}],
+            call_with_retry(
+                lambda: _client().messages.create(
+                    model=ANTHROPIC_MODEL_FAST,
+                    max_tokens=180,
+                    messages=[{"role": "user", "content": prompt}],
+                ),
+                label=f"compress/{agent_id}",
+                max_attempts=2,  # バトン圧縮は軽量なのでリトライ少なめ
             ),
-            timeout=8.0,
+            timeout=10.0,
         )
         compressed = response.content[0].text.strip()
         return compressed or output[:150]
-    except Exception:
+    except Exception as e:
+        _log.warning("compress_context fallback agent_id=%s: %r", agent_id, e)
         return output[:150]

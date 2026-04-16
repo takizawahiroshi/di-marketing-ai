@@ -378,6 +378,77 @@ def build_agent_sys_prompt(
     return "\n\n".join(parts)
 
 
+def build_agent_sys_prompt_blocks(
+    agent_id: str,
+    context: dict,
+    chained_context: str = "",
+    di_mode: bool = True,
+) -> list:
+    """
+    prompt caching 対応版。静的部分（ナレッジ・ルール）と動的部分（コンテキスト）を
+    別ブロックに分割し、静的部分に cache_control ephemeral を付けて返す。
+
+    返り値フォーマット（Anthropic Messages API 仕様）:
+      [
+        {"type": "text", "text": "...静的...", "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": "...動的..."}   # 動的部分があれば追加
+      ]
+    """
+    if di_mode:
+        knowledge = get_knowledge_text(max_chars=6000)
+        title = _AGENT_TITLES.get(agent_id, agent_id)
+        rules = _AGENT_RULES.get(agent_id, "日本語で丁寧に回答してください。")
+        static_parts = [
+            f"あなたは株式会社デジタルアイデンティティ（DI）の{title}です。"
+            "以下の知識をベースに回答してください。",
+            knowledge,
+            f"【あなたの役割と動作ルール】\n{rules}",
+            "【重要：DI視点での回答ルール】\n"
+            "・回答には必ずDIの事例・実績・サービスを具体的に引用してください。\n"
+            "・DIのフレームワーク（課題タイプ分類、時系列効果、ワンストップ連携）を使って提案してください。\n"
+            "・「DIならこう提案する」「DIの実績ではこうだった」という形で、DI固有の価値が伝わる内容にしてください。\n"
+            "・数値はDIの期待効果（短期CV率10〜30%向上、中期ROI20〜50%改善等）を参照してください。\n"
+            "・一般論ではなく、DIのケイパビリティに紐づいた具体的な提案をしてください。",
+        ]
+    else:
+        title = _GENERAL_TITLES.get(agent_id, agent_id)
+        rules = _GENERAL_RULES.get(agent_id, "日本語で丁寧に回答してください。")
+        static_parts = [
+            f"あなたはプロフェッショナルな{title}です。"
+            "マーケティングの一般的なベストプラクティスに基づいて回答してください。",
+            f"【あなたの役割と動作ルール】\n{rules}",
+            "【重要：回答スタイル】\n"
+            "・特定の企業・代理店に偏らない、中立的で汎用的なマーケティングの知見で回答してください。\n"
+            "・業界全般のベストプラクティス、フレームワーク、学術的知見を活用してください。\n"
+            "・特定企業の事例や固有サービス名は含めず、どの企業にも適用できる内容にしてください。",
+        ]
+
+    # 動的コンテキスト
+    dynamic_parts = []
+    if context.get("survey"):
+        dynamic_parts.append(f"【調査データ】\n{context['survey'][:1000]}")
+    if context.get("persona"):
+        dynamic_parts.append(f"【ペルソナ】\n{context['persona'][:500]}")
+    if context.get("brief"):
+        dynamic_parts.append(f"【ブリーフ】\n{context['brief'][:500]}")
+    if chained_context:
+        dynamic_parts.append(f"【前エージェントからのバトン（引き継ぎ情報）】\n{chained_context}")
+
+    blocks = [
+        {
+            "type": "text",
+            "text": "\n\n".join(static_parts),
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+    if dynamic_parts:
+        blocks.append({
+            "type": "text",
+            "text": "\n\n".join(dynamic_parts),
+        })
+    return blocks
+
+
 def get_agents_metadata() -> list:
     """フロントエンド向けエージェント一覧（promptなし）"""
     return [

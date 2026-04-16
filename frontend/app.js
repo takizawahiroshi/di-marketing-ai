@@ -33,6 +33,7 @@ const S = {
   ctx: { survey: '', persona: '', brief: '' },
   tasks: [],           // タスク履歴
   currentTaskId: null,
+  personas: [],        // /api/personas から取得したプリセット
 };
 
 // ── 起動処理 ──────────────────────────────────────────────────
@@ -40,8 +41,59 @@ async function init() {
   loadCtxFromStorage();
   renderHintChips();
   await loadAgents();
+  loadPersonaPresets();
+  loadTaskHistoryFromServer();
   checkHealth();
 }
+
+// ── ペルソナプリセット ────────────────────────────────────────
+async function loadPersonaPresets() {
+  try {
+    const res = await fetch(`${API_BASE}/api/personas`);
+    if (!res.ok) return;
+    const data = await res.json();
+    S.personas = data.personas || [];
+    const sel = document.getElementById('persona-select');
+    if (!sel) return;
+    // 先頭のプレースホルダを維持
+    sel.innerHTML = '<option value="">— サンプルペルソナから選択 / 自由入力 —</option>'
+      + S.personas.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.label)}</option>`).join('');
+  } catch (e) {
+    console.warn('persona load failed:', e.message);
+  }
+}
+
+function formatPersonaText(p) {
+  const lines = [];
+  lines.push(`${p.label}（${p.age}歳）`);
+  if (p.occupation) lines.push(`職業: ${p.occupation}`);
+  if (p.household) lines.push(`世帯: ${p.household}`);
+  if (p.income) lines.push(`収入: ${p.income}`);
+  if (Array.isArray(p.values) && p.values.length) lines.push(`価値観: ${p.values.join(' / ')}`);
+  if (Array.isArray(p.media) && p.media.length) lines.push(`メディア接触: ${p.media.join(' / ')}`);
+  if (Array.isArray(p.pain_points) && p.pain_points.length) {
+    lines.push('痛み・課題:');
+    p.pain_points.forEach(x => lines.push(`  - ${x}`));
+  }
+  if (Array.isArray(p.purchase_triggers) && p.purchase_triggers.length) {
+    lines.push('購入トリガー:');
+    p.purchase_triggers.forEach(x => lines.push(`  - ${x}`));
+  }
+  if (p.quote) lines.push(`本音: 「${p.quote}」`);
+  return lines.join('\n');
+}
+
+function applyPersonaPreset(id) {
+  if (!id) return;
+  const p = (S.personas || []).find(x => x.id === id);
+  if (!p) return;
+  const ta = document.getElementById('ctx-persona-in');
+  if (!ta) return;
+  const text = formatPersonaText(p);
+  ta.value = ta.value.trim() ? ta.value.trim() + '\n\n---\n\n' + text : text;
+  showToast(`ペルソナ「${p.label}」を追加しました`);
+}
+window.applyPersonaPreset = applyPersonaPreset;
 
 async function loadAgents() {
   try {
@@ -165,7 +217,7 @@ function renderAgentNav() {
       </button>
       ${agents.map(a => `
         <button class="ln-item ln-sub-item" onclick="openAgent('${a.id}')">
-          <span class="ln-icon">${a.icon}</span>${a.name}
+          <span class="ln-icon">${a.icon}</span>${escapeHtml(a.name)}
         </button>
       `).join('')}
     </div>
@@ -188,10 +240,10 @@ function renderAgentCards() {
           <div class="acard" onclick="openAgent('${a.id}')">
             <div class="acard-top">
               <div class="acard-icon" style="background:${CATS[cat]?.light||'#eee'}">${a.icon}</div>
-              <span class="acard-name">${a.name}</span>
+              <span class="acard-name">${escapeHtml(a.name)}</span>
             </div>
-            <div class="acard-desc">${a.desc}</div>
-            ${a.starters && a.starters.length ? `<div class="acard-examples"><div class="acard-examples-label">使い方の例</div>${a.starters.map(s => `<div class="acard-example">${s}</div>`).join('')}</div>` : ''}
+            <div class="acard-desc">${escapeHtml(a.desc)}</div>
+            ${a.starters && a.starters.length ? `<div class="acard-examples"><div class="acard-examples-label">使い方の例</div>${a.starters.map(s => `<div class="acard-example">${escapeHtml(s)}</div>`).join('')}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -270,6 +322,10 @@ async function sendMsg() {
   S.running = true;
   document.getElementById('send-btn').disabled = true;
   const thinkingEl = appendThinking();
+  let shouldOpenSettings = false;
+  let aiEl = null;      // ストリーミング開始時に生成する吹き出し要素
+  let bubble = null;    // aiEl 内の .msg-bubble
+  let accumulated = ''; // 累積テキスト（renderMarkdown の都度描画用）
 
   try {
     const res = await fetch(`${API_BASE}/api/agents/${S.agent.id}/chat`, {
@@ -278,19 +334,84 @@ async function sendMsg() {
       body: JSON.stringify({ messages: S.agentMsgs, context: S.ctx }),
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    thinkingEl.remove();
-    const reply = data.reply || '(応答なし)';
-    S.agentMsgs.push({ role: 'assistant', content: reply });
-    appendAiMsg(reply);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        appendAiMsg(`⚠️ ${err.detail || 'APIキーが未設定です。'}\n\n右上の「⚙ 設定」からAPIキーを登録してください。`);
+        shouldOpenSettings = true;
+        return;
+      }
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    // ── SSE 読み取り ───────────────────────────────────────
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let errMsg = '';
+
+    const ensureBubble = () => {
+      if (aiEl) return;
+      thinkingEl.remove();
+      aiEl = document.createElement('div');
+      aiEl.className = 'msg-ai';
+      bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      aiEl.appendChild(bubble);
+      document.getElementById('msgs').appendChild(aiEl);
+    };
+
+    outer: while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+        if (evt.type === 'token') {
+          ensureBubble();
+          accumulated += evt.data?.text || '';
+          bubble.innerHTML = renderMarkdown(accumulated);
+          const msgs = document.getElementById('msgs');
+          msgs.scrollTop = msgs.scrollHeight;
+        } else if (evt.type === 'error') {
+          errMsg = evt.data?.message || 'unknown error';
+          break outer;
+        } else if (evt.type === 'done') {
+          break outer;
+        }
+      }
+    }
+
+    if (errMsg) {
+      ensureBubble();
+      bubble.innerHTML = renderMarkdown((accumulated ? accumulated + '\n\n' : '') + `⚠️ ${errMsg}`);
+      // エラーもコピペできるようボタンを付与
+      _attachCopyBtn(bubble, errMsg);
+      throw new Error('skip-handled');
+    }
+
+    if (accumulated) {
+      _attachCopyBtn(bubble, accumulated);
+      S.agentMsgs.push({ role: 'assistant', content: accumulated });
+    } else if (aiEl === null) {
+      // トークンが 1 個も来ず done だけ来たケース
+      appendAiMsg('(応答なし)');
+    }
   } catch (e) {
-    thinkingEl.remove();
-    appendAiMsg(`⚠️ エラーが発生しました: ${e.message}\n\nサーバーが起動しているか確認してください。`);
+    if (e.message !== 'skip-handled') {
+      thinkingEl.remove();
+      appendAiMsg(`⚠️ エラーが発生しました: ${e.message}\n\nサーバーが起動しているか確認してください。`);
+    }
   } finally {
+    if (thinkingEl.isConnected) thinkingEl.remove();
     S.running = false;
     document.getElementById('send-btn').disabled = false;
     ci.focus();
+    if (shouldOpenSettings && typeof openSettings === 'function') openSettings();
   }
 }
 
@@ -300,11 +421,25 @@ window.openAgent = openAgent;
 window.setMode = setMode;
 
 // ── メッセージ描画 ────────────────────────────────────────────
+function _attachCopyBtn(bubble, rawText) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'copy-btn msg-copy-btn';
+  btn.textContent = '📋';
+  btn.title = 'コピー';
+  btn.onclick = (e) => { e.stopPropagation(); copyText(rawText, btn); };
+  bubble.appendChild(btn);
+}
+
 function appendUserMsg(text) {
   const msgs = document.getElementById('msgs');
   const el = document.createElement('div');
   el.className = 'msg-user';
-  el.innerHTML = `<div class="msg-bubble">${escapeHtml(text)}</div>`;
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = escapeHtml(text);
+  _attachCopyBtn(bubble, text);
+  el.appendChild(bubble);
   msgs.appendChild(el);
   msgs.scrollTop = msgs.scrollHeight;
 }
@@ -313,7 +448,11 @@ function appendAiMsg(text, isWelcome = false) {
   const msgs = document.getElementById('msgs');
   const el = document.createElement('div');
   el.className = 'msg-ai';
-  el.innerHTML = `<div class="msg-bubble">${renderMarkdown(text)}</div>`;
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = renderMarkdown(text);
+  _attachCopyBtn(bubble, text);
+  el.appendChild(bubble);
   msgs.appendChild(el);
   msgs.scrollTop = msgs.scrollHeight;
   return el;
@@ -368,7 +507,10 @@ async function _executeOrchestrator(goal) {
   const taskHeader = document.createElement('div');
   taskHeader.className = 'task-header';
   taskHeader.innerHTML = `
-    <div class="task-goal">${escapeHtml(goal)}</div>
+    <div class="task-goal-wrap">
+      <div class="task-goal">${escapeHtml(goal)}</div>
+      <button type="button" class="copy-btn" onclick="copyText(${JSON.stringify(goal)}, this)">📋 コピー</button>
+    </div>
     <div class="task-meta">
       <span class="task-status-badge planning" id="task-badge">⏳ プランニング中...</span>
     </div>`;
@@ -392,6 +534,7 @@ async function _executeOrchestrator(goal) {
   finalOutput.innerHTML = `
     <div class="fo-header">
       <span class="fo-label">📋 統合アウトプット</span>
+      <button type="button" class="copy-btn" onclick="copySynthesis(this)">📋 コピー</button>
       <button class="export-btn" onclick="exportMarkdown()">↓ export</button>
     </div>
     <div class="fo-body" id="fo-body"></div>`;
@@ -409,7 +552,14 @@ async function _executeOrchestrator(goal) {
     await _streamPipeline(goal, taskRecord, planBlock, agentOutputs, finalOutput);
   } catch (e) {
     setBadge('error', '❌ エラー');
-    showToast(`エラー: ${e.message}`);
+    console.error('orchestrator error', e);
+    if (e.message.includes('APIキー') || e.message.includes('未設定')) {
+      showToast('APIキーが未設定です。設定画面を開きます…');
+      if (typeof openSettings === 'function') openSettings();
+    } else {
+      showToast(`エラー: ${e.message}`);
+    }
+    appendExecError(e.message);
   } finally {
     S.running = false;
     document.getElementById('run-btn').disabled = false;
@@ -470,14 +620,27 @@ function handleSSEEvent(event, taskRecord, planBlock, agentOutputs, finalOutput,
           const agent = S.agents.find(a => a.id === id);
           return [
             i > 0 ? '<span class="plan-arrow">→</span>' : '',
-            `<span class="plan-step" id="ps-${id}">`,
+            `<span class="plan-step" id="ps-${escapeHtml(id)}">`,
             agent ? agent.icon : '🤖',
-            ` ${agent ? agent.name : id}`,
+            ` ${escapeHtml(agent ? agent.name : id)}`,
             '</span>',
           ].join('');
         }).join('');
       }
-      if (reasonEl) reasonEl.textContent = data.reason;
+      if (reasonEl) {
+        reasonEl.textContent = data.reason;
+        // プラン理由は常時コピー可能にする
+        const existingBtn = reasonEl.parentElement?.querySelector('.copy-btn.plan-reason-copy');
+        if (!existingBtn && data.reason) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'copy-btn plan-reason-copy';
+          btn.style.marginTop = '6px';
+          btn.textContent = '📋 コピー';
+          btn.onclick = () => copyText(data.reason, btn);
+          reasonEl.parentElement?.appendChild(btn);
+        }
+      }
       break;
     }
 
@@ -492,10 +655,11 @@ function handleSSEEvent(event, taskRecord, planBlock, agentOutputs, finalOutput,
         <div class="ao-header">
           <span class="ao-num">0${data.num}</span>
           <span class="ao-icon">${agent?.icon || '🤖'}</span>
-          <span class="ao-name">${agent?.name || data.id}</span>
-          <span class="ao-status running" id="aos-${data.id}">● 実行中</span>
+          <span class="ao-name">${escapeHtml(agent?.name || data.id)}</span>
+          <span class="ao-status running" id="aos-${escapeHtml(data.id)}">● 実行中</span>
+          <button type="button" class="copy-btn" style="margin-left:auto;" onclick="copyAgentOutput('${escapeHtml(data.id)}', this)">📋 コピー</button>
         </div>
-        <div class="ao-body" id="aob-${data.id}"></div>`;
+        <div class="ao-body" id="aob-${escapeHtml(data.id)}"></div>`;
       agentOutputs.appendChild(div);
       agentOutputs.scrollTop = agentOutputs.scrollHeight;
       break;
@@ -525,6 +689,7 @@ function handleSSEEvent(event, taskRecord, planBlock, agentOutputs, finalOutput,
         bi.style.display = 'flex';
         const fromAgent = S.agents.find(a => a.id === data.from);
         const toAgent = S.agents.find(a => a.id === data.to);
+        // textContent なので raw 代入で安全
         bi.textContent = `🔗 ${fromAgent?.name || data.from} → ${toAgent?.name || data.to} バトン圧縮中...`;
       }
       break;
@@ -574,6 +739,8 @@ function handleSSEEvent(event, taskRecord, planBlock, agentOutputs, finalOutput,
     case 'error':
       setBadge('error', '❌ エラー');
       showToast(`エラー: ${data.message}`);
+      appendExecError(data.message);
+      console.error('orchestrator error', data.message);
       break;
   }
 }
@@ -581,6 +748,82 @@ function handleSSEEvent(event, taskRecord, planBlock, agentOutputs, finalOutput,
 function setBadge(cls, text) {
   const badge = document.getElementById('task-badge');
   if (badge) { badge.className = `task-status-badge ${cls}`; badge.textContent = text; }
+}
+
+// ── ワンクリックコピー ────────────────────────────────────────
+async function copyText(text, btn) {
+  const original = btn ? btn.textContent : null;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // 非 HTTPS / 古いブラウザのフォールバック
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    if (btn) {
+      btn.textContent = '✓ コピー完了';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove('copied');
+      }, 1500);
+    }
+    showToast('クリップボードにコピーしました');
+  } catch (e) {
+    console.error('copy failed', e);
+    showToast('コピーに失敗しました: ' + e.message);
+  }
+}
+window.copyText = copyText;
+
+// エージェント出力をコピー（Markdown 生テキスト）
+function copyAgentOutput(agentId, btn) {
+  const body = document.getElementById(`aob-${agentId}`);
+  if (!body) return;
+  copyText(body.innerText || body.textContent || '', btn);
+}
+window.copyAgentOutput = copyAgentOutput;
+
+// 統合出力をコピー
+function copySynthesis(btn) {
+  const body = document.getElementById('fo-body');
+  if (!body) return;
+  copyText(body.innerText || body.textContent || '', btn);
+}
+window.copySynthesis = copySynthesis;
+
+// ── 永続エラー表示（toast は 2.5 秒で消えるためコピー用に DOM に残す） ──
+function appendExecError(message) {
+  if (!message) return;
+  const container = document.getElementById('exec-content');
+  if (!container) return;
+  const text = String(message);
+  const box = document.createElement('div');
+  box.className = 'exec-error';
+  const head = document.createElement('div');
+  head.className = 'exec-error-head';
+  const label = document.createElement('span');
+  label.textContent = '⚠ エラー詳細';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'copy-btn';
+  btn.textContent = '📋 コピー';
+  btn.onclick = () => copyText(text, btn);
+  head.appendChild(label);
+  head.appendChild(btn);
+  const pre = document.createElement('pre');
+  pre.textContent = text;
+  box.appendChild(head);
+  box.appendChild(pre);
+  container.appendChild(box);
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // ── タスク履歴 ────────────────────────────────────────────────
@@ -592,11 +835,151 @@ function renderTaskHistory() {
     return;
   }
   list.innerHTML = S.tasks.slice(0, 10).map(t => `
-    <div class="hist-item ${t.id === S.currentTaskId ? 'active' : ''}">
+    <div class="hist-item ${t.id === S.currentTaskId ? 'active' : ''}" onclick="replayTask('${escapeHtml(t.id)}')">
       <div class="hist-title">${escapeHtml(t.goal.slice(0, 40))}</div>
-      <div class="hist-meta">${t.agents.join(' → ')}</div>
+      <div class="hist-meta">${escapeHtml((t.agents || []).join(' → '))}</div>
     </div>
   `).join('');
+}
+
+// サーバー側の永続履歴から初期表示
+async function loadTaskHistoryFromServer() {
+  try {
+    const res = await fetch(`${API_BASE}/api/memory/results`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const records = data.results || [];
+    if (records.length === 0) return;
+    S.tasks = records.map(r => ({
+      id: r.id,
+      goal: r.goal || '',
+      agents: r.agent_ids || [],
+      synthesis: '',  // 詳細取得時に埋まる
+      ts: Date.parse(r.timestamp || '') || 0,
+      persisted: true,
+    }));
+    renderTaskHistory();
+  } catch (e) {
+    console.warn('history load failed:', e.message);
+  }
+}
+
+// 履歴クリック → サーバーから詳細取得して再描画
+async function replayTask(taskId) {
+  if (S.running) { showToast('実行中は履歴を開けません'); return; }
+  try {
+    const res = await fetch(`${API_BASE}/api/memory/results/${encodeURIComponent(taskId)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(`履歴の取得に失敗: ${err.detail || res.status}`);
+      return;
+    }
+    const detail = await res.json();
+    S.currentTaskId = taskId;
+    renderTaskHistory();
+    renderRestoredTask(detail);
+  } catch (e) {
+    showToast('履歴取得エラー: ' + e.message);
+  }
+}
+window.replayTask = replayTask;
+
+function renderRestoredTask(rec) {
+  // ランディング → 実行エリア
+  document.getElementById('orch-landing').style.display = 'none';
+  document.getElementById('exec-area').style.display = 'flex';
+  document.getElementById('exec-area').style.flexDirection = 'column';
+  document.getElementById('input-zone').style.display = 'block';
+
+  const execContent = document.getElementById('exec-content');
+  execContent.innerHTML = '';
+
+  const goal = rec.goal || '';
+  const agents = (rec.agent_results || []).map(a => a.agent_id);
+  const plan = rec.plan || {};
+
+  // タスクヘッダー
+  const taskHeader = document.createElement('div');
+  taskHeader.className = 'task-header';
+  taskHeader.innerHTML = `
+    <div class="task-goal-wrap">
+      <div class="task-goal">${escapeHtml(goal)}</div>
+      <button type="button" class="copy-btn" onclick="copyText(${JSON.stringify(goal)}, this)">📋 コピー</button>
+    </div>
+    <div class="task-meta">
+      <span class="task-status-badge done">📂 履歴復元</span>
+      <span style="font-size:10px;color:var(--muted);margin-left:8px;">${escapeHtml(rec.timestamp || '')}</span>
+    </div>`;
+  execContent.appendChild(taskHeader);
+
+  // プランブロック
+  const planBlock = document.createElement('div');
+  planBlock.className = 'plan-block';
+  planBlock.innerHTML = `<div class="plan-title">AGENT PIPELINE</div><div class="plan-steps" id="plan-steps-row"></div><div class="plan-reason" id="plan-reason"></div>`;
+  execContent.appendChild(planBlock);
+  const stepsRow = document.getElementById('plan-steps-row');
+  if (stepsRow) {
+    stepsRow.innerHTML = agents.map((id, i) => {
+      const ag = S.agents.find(a => a.id === id);
+      return [
+        i > 0 ? '<span class="plan-arrow">→</span>' : '',
+        `<span class="plan-step done" id="ps-${escapeHtml(id)}">`,
+        ag ? ag.icon : '🤖',
+        ` ${escapeHtml(ag ? ag.name : id)}`,
+        '</span>',
+      ].join('');
+    }).join('');
+  }
+  const reasonEl = document.getElementById('plan-reason');
+  if (reasonEl && plan.reason) reasonEl.textContent = plan.reason;
+
+  // 各エージェント出力
+  const agentOutputs = document.createElement('div');
+  agentOutputs.id = 'agent-outputs';
+  execContent.appendChild(agentOutputs);
+  (rec.agent_results || []).forEach((ar, i) => {
+    const ag = S.agents.find(a => a.id === ar.agent_id);
+    const div = document.createElement('div');
+    div.className = 'agent-output';
+    div.id = `ao-${ar.agent_id}`;
+    div.innerHTML = `
+      <div class="ao-header">
+        <span class="ao-num">0${i + 1}</span>
+        <span class="ao-icon">${ag?.icon || '🤖'}</span>
+        <span class="ao-name">${escapeHtml(ag?.name || ar.agent_id)}</span>
+        <span class="ao-status done">✓ 完了</span>
+        <button type="button" class="copy-btn" style="margin-left:auto;" onclick="copyAgentOutput('${escapeHtml(ar.agent_id)}', this)">📋 コピー</button>
+      </div>
+      <div class="ao-body" id="aob-${escapeHtml(ar.agent_id)}"></div>`;
+    agentOutputs.appendChild(div);
+    const body = document.getElementById(`aob-${ar.agent_id}`);
+    if (body) body.innerHTML = renderMarkdown(ar.output || '(保存されていません)');
+  });
+
+  // 統合出力
+  const synthText = rec.synthesis || '';
+  if (synthText) {
+    const finalOutput = document.createElement('div');
+    finalOutput.className = 'final-output';
+    finalOutput.innerHTML = `
+      <div class="fo-header">
+        <span class="fo-label">📋 統合アウトプット（履歴）</span>
+        <button type="button" class="copy-btn" onclick="copySynthesis(this)">📋 コピー</button>
+        <button class="export-btn" onclick="exportMarkdown()">↓ export</button>
+      </div>
+      <div class="fo-body" id="fo-body"></div>`;
+    execContent.appendChild(finalOutput);
+    document.getElementById('fo-body').innerHTML = renderMarkdown(synthText);
+  }
+
+  // 現在タスクとしても保持（export 用）
+  const taskRec = S.tasks.find(t => t.id === rec.id);
+  if (taskRec) {
+    taskRec.synthesis = synthText;
+    taskRec.agents = agents;
+  } else {
+    S.tasks.unshift({ id: rec.id, goal, agents, synthesis: synthText, ts: Date.now() });
+  }
 }
 
 // ── エクスポート ──────────────────────────────────────────────

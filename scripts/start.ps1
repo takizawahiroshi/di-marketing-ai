@@ -11,12 +11,7 @@ Write-Host "  DI Marketing AI Backend" -ForegroundColor Cyan
 Write-Host "  http://localhost:8000" -ForegroundColor Cyan
 Write-Host "  Swagger UI: http://localhost:8000/docs" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
-
-$envFile = Join-Path $root "backend\.env"
-if (-not (Test-Path $envFile)) {
-    Write-Host "[ERROR] backend\.env not found." -ForegroundColor Red
-    exit 1
-}
+Write-Host "[INFO] APIキーはダッシュボード右上「⚙ 設定」から登録してください。" -ForegroundColor Yellow
 
 Write-Host ""
 Write-Host "Starting server... (Ctrl+C to stop)" -ForegroundColor Green

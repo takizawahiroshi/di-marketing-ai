@@ -1,5 +1,33 @@
 {
   "version": "1.0",
-  "combos": [],
-  "updated_at": ""
+  "combos": [
+    {
+      "combo": "strategy",
+      "agents": [
+        "strategy"
+      ],
+      "count": 4
+    },
+    {
+      "combo": "depth → strategy → activation → digital",
+      "agents": [
+        "depth",
+        "strategy",
+        "activation",
+        "digital"
+      ],
+      "count": 1
+    },
+    {
+      "combo": "grouin → strategy → activation → media",
+      "agents": [
+        "grouin",
+        "strategy",
+        "activation",
+        "media"
+      ],
+      "count": 1
+    }
+  ],
+  "updated_at": "2026-04-16T15:57:44.105621"
 }

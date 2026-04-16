@@ -30,6 +30,10 @@ def _save_json(path: Path, data: dict) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+_MAX_AGENT_OUTPUT = 20000   # 1 エージェントあたりの保存上限（文字数）
+_MAX_SYNTHESIS    = 30000   # synthesis の保存上限（文字数）
+
+
 async def save_result(
     task_id: str,
     goal: str,
@@ -38,7 +42,10 @@ async def save_result(
     synthesis: str,
     context: dict = None,
 ) -> None:
-    """タスク実行結果を results.json に保存する（最大50件）"""
+    """
+    タスク実行結果を results.json に保存する（最大50件）。
+    履歴クリック復元のため full text を保存する（長さ上限あり）。
+    """
     record = {
         "id": task_id,
         "timestamp": datetime.now().isoformat(),
@@ -53,11 +60,13 @@ async def save_result(
             {
                 "agent_id": r["agent_id"],
                 "output_len": len(r.get("output", "")),
+                "output": (r.get("output", "") or "")[:_MAX_AGENT_OUTPUT],
                 "baton": r.get("baton", ""),
             }
             for r in results
         ],
         "synthesis_len": len(synthesis),
+        "synthesis": (synthesis or "")[:_MAX_SYNTHESIS],
     }
 
     async with _lock:
@@ -70,8 +79,29 @@ async def save_result(
 
 
 async def get_results(limit: int = 20) -> list:
+    """一覧用（サマリーのみ、本文は除く）"""
     data = _load_json(RESULTS_PATH, {"version": "1.0", "results": []})
-    return data["results"][:limit]
+    records = data["results"][:limit]
+    summary = []
+    for r in records:
+        summary.append({
+            "id": r["id"],
+            "timestamp": r.get("timestamp", ""),
+            "goal": r.get("goal", ""),
+            "plan": r.get("plan", {}),
+            "agent_ids": [a["agent_id"] for a in r.get("agent_results", [])],
+            "synthesis_len": r.get("synthesis_len", 0),
+        })
+    return summary
+
+
+async def get_result_detail(task_id: str) -> dict | None:
+    """履歴クリック復元用（full text 含む）"""
+    data = _load_json(RESULTS_PATH, {"version": "1.0", "results": []})
+    for r in data["results"]:
+        if r.get("id") == task_id:
+            return r
+    return None
 
 
 async def _update_patterns(agents: list) -> None:

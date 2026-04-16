@@ -213,7 +213,15 @@
         <div id="file-list" class="file-list"></div>
       </div>
       <div class="m-block"><div class="m-label">survey // アンケート結果・調査まとめ</div><textarea class="m-ta" id="ctx-survey-in" placeholder="集計結果、主要な発見事項..."></textarea></div>
-      <div class="m-block"><div class="m-label">persona // ターゲット・ペルソナ</div><textarea class="m-ta" id="ctx-persona-in" placeholder="田中美咲（32歳・会社員）..."></textarea></div>
+      <div class="m-block">
+        <div class="m-label">persona // ターゲット・ペルソナ</div>
+        <div class="persona-picker">
+          <select id="persona-select" class="persona-select" onchange="applyPersonaPreset(this.value)">
+            <option value="">— サンプルペルソナから選択 / 自由入力 —</option>
+          </select>
+        </div>
+        <textarea class="m-ta" id="ctx-persona-in" placeholder="田中美咲（32歳・会社員）..."></textarea>
+      </div>
       <div class="m-block"><div class="m-label">brief // 案件背景・目的</div><textarea class="m-ta" id="ctx-brief-in" placeholder="クライアント：○○株式会社..."></textarea></div>
     </div>
     <div class="modal-foot"><button class="btn-s" onclick="closeModal('ctx-modal')">cancel</button><button class="btn-p" onclick="saveCtx()">save</button></div>

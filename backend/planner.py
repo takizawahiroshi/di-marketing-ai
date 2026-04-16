@@ -2,13 +2,21 @@
 エージェント選択プランナー。
 claude-sonnet-4-6 でユーザーゴールから最適なエージェント2〜4個を選択する。
 """
+import logging
 import re
 import json
-import os
 import anthropic
 from .agent_registry import build_agent_list_text, VALID_IDS, AGENT_REGISTRY
+from .models import ANTHROPIC_MODEL_MAIN
+from .retry import call_with_retry
 
-client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+_log = logging.getLogger(__name__)
+
+
+def _client() -> anthropic.AsyncAnthropic:
+    """呼び出し時に最新のAPIキーでクライアントを生成する（ダッシュボード更新に追従）"""
+    from .main import get_api_key
+    return anthropic.AsyncAnthropic(api_key=get_api_key())
 
 _PLANNER_SYSTEM = """あなたはDIマーケティングAIプラットフォームのオーケストレーターです。
 ユーザーのマーケティング課題に対して、最適なエージェントを2〜4個選び、実行順序と理由をJSONで返してください。
@@ -56,23 +64,35 @@ async def plan_task(
         agent_list=build_agent_list_text(),
         valid_ids=", ".join(VALID_IDS),
     )
+    # プランナーの system は完全に静的なのでブロック全体をキャッシュ
+    sys_blocks = [
+        {
+            "type": "text",
+            "text": sys_prompt,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
     user_msg = f"マーケティング課題: {goal}"
     if ctx_note:
         user_msg += f"\n\n投入済みコンテキスト:{ctx_note}"
 
     try:
-        response = await client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=500,
-            system=sys_prompt,
-            messages=[{"role": "user", "content": user_msg}],
+        response = await call_with_retry(
+            lambda: _client().messages.create(
+                model=ANTHROPIC_MODEL_MAIN,
+                max_tokens=500,
+                system=sys_blocks,
+                messages=[{"role": "user", "content": user_msg}],
+            ),
+            label="planner",
         )
         text = response.content[0].text.strip()
         return _parse_plan(text)
     except Exception as e:
+        _log.exception("plan_task failed")
         return {
             "agents": ["strategy"],
-            "reason": f"プランナーエラーのためデフォルト選択: {str(e)[:80]}",
+            "reason": f"プランナーエラーのためデフォルト選択: {e!r}",
         }
 
 
