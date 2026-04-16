@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — di-marketing-ai 社内継続利用システム
 
-最終更新: 2026-04-16（セッション12: Phase 4 完了・履歴書き換え・public repo 公開）
+最終更新: 2026-04-16（セッション13: 視覚刷新 Phase A 完了・Phase B 2/5 着手）
 
 ---
 
@@ -103,23 +103,51 @@ python -m uvicorn backend.main:app --reload --port 8000
 
 ---
 
-## 🟢 今後の候補タスク（Phase 5）
+## 🟢 今後の候補タスク（Phase B 残り + Phase C）
 
-| ファイル / 領域 | 内容 | 優先度 |
-|---|---|---|
-| `frontend/` | A/B 実験 UI — `/api/experiment` をダッシュボードで叩けるモードを追加。ペルソナ選択を multi-select にして並列比較 | 中 |
-| `frontend/` | export 拡張 — 統合だけでなく各エージェント出力も 1 つの Markdown にバンドルしてダウンロード | 中 |
-| `frontend/` | プランに対するユーザー介入 — 提示されたエージェント列を手動追加/削除/並び替えして再実行できる | 中 |
-| `backend/pipeline.py` | SSE keepalive — 30 秒ごとに `data: :heartbeat\n\n` を挿入（逆プロキシの idle timeout 対策） |  低 |
-| `backend/` | 残高監視 — 定期的に Anthropic API に ping して credit balance をヘルスチェックに含める | 低 |
-| `tests/` | E2E smoke test（Playwright or pytest + httpx）— push 前に自動で走るようにする | 低 |
-| `frontend/app.js` | Markdown レンダリングを正規表現から `marked` / `micromark` に置換（リスト・テーブル・コードブロック対応強化） | 低 |
-| `backend/memory_store.py` | results.json の肥大化対策（synthesis が大きくなりすぎたとき自動トリム、または SQLite に移行） | 低 |
-| ドキュメント | `CONTRIBUTING.md` で社内コーディング規約とデプロイ手順を整備 | 低 |
+### Phase B — プロダクト価値の深化（残り 3 / 5）
+
+| ファイル / 領域 | 内容 | 優先度 | 状態 |
+|---|---|---|---|
+| `frontend/`, `backend/` | A/B 実験 UI — `/api/experiment` をダッシュボードで叩くモード追加 | 中 | ✅ 完了（セッション 13） |
+| `frontend/` | プラン介入 — エージェント列を手動編集して再実行 | 中 | ✅ 完了（セッション 13） |
+| `backend/`, `frontend/` | **コスト・キャッシュダッシュボード** — `cache_read` / `cache_create` / input / output トークンをプロセス内集計、`/api/usage` で返却、ヘッダーまたは別パネルで節約額表示 | 中 | 🔜 次回 |
+| `frontend/` | **テンプレートライブラリ** — 課題入力テンプレ 20〜30 本（「新商品コンセプト開発」「CVR改善診断」等）、ユーザー定義テンプレ保存 | 中 | 🔜 次回 |
+| `backend/`, `frontend/` | **リッチ export** — 統合出力を PDF / DOCX / PPTX で出力（Claude Skills を活用） | 中 | 🔜 次回 |
+
+### Phase C — 商用化準備
+
+| 内容 | 優先度 |
+|---|---|
+| 認証 + ワークスペース（Auth0 / Clerk、Owner/Admin/Member/Viewer ロール） | 中 |
+| 使用量メータリング + Stripe 課金（Starter/Pro/Enterprise プラン） | 中 |
+| 統合: Slack 通知、Notion / Google Docs に export、Webhook | 中 |
+| 監査ログ（誰がいつ何を実行したか） | 中 |
+
+### 基盤・品質改善（低優先）
+
+| 内容 |
+|---|
+| `backend/pipeline.py` SSE keepalive（30s ごとに heartbeat） |
+| 残高監視: `/api/health` に Anthropic credit balance を含める |
+| E2E smoke test（Playwright / pytest + httpx） |
+| `memory_store` の results.json 肥大化対策（SQLite への移行） |
+| `CONTRIBUTING.md` で社内コーディング規約整備 |
 
 ---
 
 ## 📋 最近のセッション履歴
+
+### セッション 13（2026-04-16 夕〜夜）
+- **視覚刷新 先行 Phase A（4 PR 完了・push 済み）**
+  - PR 1: Design tokens refresh — spacing/radii/type/elevation/motion/ink ランプを `:root` に追加、`#FFFFFF` を `var(--surface)` にスワップ、`prefers-reduced-motion` 対応
+  - PR 2: Dark mode — プリペイントスクリプト、ヘッダー ☀️/🌙 トグル、localStorage 永続化、OS 追従、`.exec-error` 専用オーバーライド
+  - PR 3: Markdown renderer 置換 — `marked@12` + `DOMPurify@3` + `highlight.js@11` を `frontend/vendor/` に vendoring、GFM 対応、hljs テーマ切替
+  - PR 4: 空状態・ランディング刷新 — `Marketing × AI` Serif ヒーロー、HINTS を自動分類した 6 枚スターターカード、履歴空状態の書類スタック SVG
+- **Phase B 2 件（このセッションでマージ）**
+  - EXPERIMENT タブ UI — ヘッダー第3タブ、バリアント追加/削除、AI Judge トグル、side-by-side 結果表示、Judge ランキングバナー（ゴールドグラデ）。`experiment_loop.to_dict(include_text=True)` で synthesis/outputs を返却
+  - プラン介入 — AGENT PIPELINE に「✎ 編集して再実行」ボタン、並び替え↑↓/削除✕/追加候補チップ、`forced_agents` 経由で再実行
+- **残 Phase B**（次回）: コストダッシュボード / テンプレートライブラリ / リッチ export
 
 ### セッション 12（2026-04-16 後半）
 - **Phase 4 完了**:
