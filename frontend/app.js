@@ -1054,6 +1054,27 @@ function toggleMenu() {
 }
 window.toggleMenu = toggleMenu;
 
+// ── テーマ切替 ─────────────────────────────────────────────────
+function toggleTheme() {
+  const root = document.documentElement;
+  const cur = root.getAttribute('data-theme') || 'light';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  try { localStorage.setItem('di-theme', next); } catch {}
+}
+window.toggleTheme = toggleTheme;
+
+// OS のテーマ変更に追従（localStorage が未設定のときのみ）
+if (window.matchMedia) {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  mq.addEventListener?.('change', (e) => {
+    try {
+      if (localStorage.getItem('di-theme')) return; // 明示保存済みは尊重
+    } catch {}
+    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+  });
+}
+
 // Ctrl+Enter / Cmd+Enter でチャット送信
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {

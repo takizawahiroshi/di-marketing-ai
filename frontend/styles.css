@@ -393,6 +393,45 @@ body{display:flex;flex-direction:column;height:100vh;margin:0;overflow:hidden;fo
   --mono:'IBM Plex Mono',monospace;--sans:'Noto Sans JP',sans-serif;
 }
 
+/* Dark theme — :root[data-theme="dark"] で token 値を再マップ */
+:root[data-theme="dark"]{
+  --bg:#0E1116;--surface:#151923;--panel:#1B2130;
+  --border:#242B38;--border2:#2E3648;
+  --text:#ECEEF3;--muted:#9BA1AE;--dim:#3A4150;
+  --ink-900:#ECEEF3;--ink-700:#CDD1DA;--ink-500:#9BA1AE;
+  --ink-300:#5B6472;--ink-100:#242B38;--ink-50:#1B2130;
+  --gold:#D9A942;
+  --blue-lt:#2A3B6B;--blue-xlt:rgba(52,96,251,.12);
+  --blue-dim:rgba(52,96,251,.22);--blue-mid:rgba(52,96,251,.28);
+  --green-dim:rgba(37,157,99,.14);--green-lt:rgba(37,157,99,.22);
+  --amber-dim:rgba(172,62,0,.20);
+  --red-dim:rgba(254,57,57,.18);
+  --neutral:#242B38;--neutral2:#1B2130;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.35);
+  --shadow-md:0 4px 14px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.25);
+  --shadow-lg:0 10px 30px rgba(0,0,0,.55),0 4px 8px rgba(0,0,0,.35);
+  --shadow-xl:0 24px 60px rgba(0,0,0,.60),0 8px 16px rgba(0,0,0,.35);
+  --shadow-focus:0 0 0 3px rgba(112,150,248,.32);
+}
+
+/* テーマトグルボタン（☀️/🌙） */
+.theme-toggle{min-width:34px;padding:6px 10px!important;}
+.theme-toggle::before{content:'🌙';}
+:root[data-theme="dark"] .theme-toggle::before{content:'☀️';}
+
+/* ダーク用の個別オーバーライド（多くのコンポーネントは token 変更で追従するが、
+   ハードコード色やフラットな light グラデを持つものはここで上書き） */
+:root[data-theme="dark"] .exec-error{
+  background:rgba(200,50,26,.10);border-color:rgba(200,50,26,.40);color:#F8C6BA;
+}
+:root[data-theme="dark"] .exec-error-head{color:#F8806A;}
+:root[data-theme="dark"] .exec-error pre{color:#F3D6CD;}
+:root[data-theme="dark"] .msg-user .msg-bubble{color:#1A1203;} /* gold 吹き出しの文字は地色を維持 */
+:root[data-theme="dark"] .copy-btn.copied,
+:root[data-theme="dark"] .msg-copy-btn.copied{background:#188F8F;color:#0B1315;border-color:#188F8F;}
+:root[data-theme="dark"] .hint-chip:hover,
+:root[data-theme="dark"] .acard:hover{border-color:var(--blue3);}
+
 /* Reduced motion: disable decorative transforms */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
