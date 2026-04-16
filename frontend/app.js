@@ -34,6 +34,8 @@ const S = {
   tasks: [],           // タスク履歴
   currentTaskId: null,
   personas: [],        // /api/personas から取得したプリセット
+  lastGoal: '',        // 最後に実行した課題（プラン介入再実行用）
+  lastPlan: null,      // 最後に展開したプラン { agents, reason }
 };
 
 // ── 起動処理 ──────────────────────────────────────────────────
@@ -241,6 +243,71 @@ function renderStarterCards() {
   }).join('');
 }
 window.renderStarterCards = renderStarterCards;
+
+// ── プラン介入（エージェント列を手動編集して再実行） ────────
+function openPlanEditor() {
+  if (S.running) { showToast('実行中はプランを編集できません'); return; }
+  const currentAgents = (S.lastPlan?.agents || []).slice();
+  const list = document.getElementById('plan-edit-list');
+  const available = document.getElementById('plan-edit-available');
+  if (!list || !available) return;
+
+  // 現在の列
+  list.innerHTML = currentAgents.map((id, i) => {
+    const a = S.agents.find(x => x.id === id);
+    return `
+      <div class="plan-edit-item" data-id="${escapeHtml(id)}" data-idx="${i}">
+        <span class="plan-edit-icon">${a?.icon || '🤖'}</span>
+        <span class="plan-edit-name">${escapeHtml(a?.name || id)}</span>
+        <span class="plan-edit-order">${i + 1}</span>
+        <button type="button" class="plan-edit-up" onclick="movePlanAgent(${i}, -1)" aria-label="上へ">↑</button>
+        <button type="button" class="plan-edit-down" onclick="movePlanAgent(${i}, 1)" aria-label="下へ">↓</button>
+        <button type="button" class="plan-edit-rm" onclick="removePlanAgent('${escapeHtml(id)}')" aria-label="削除">✕</button>
+      </div>`;
+  }).join('') || '<div class="plan-edit-empty">エージェントが選択されていません</div>';
+
+  // 追加候補（現在の列にいないもの）
+  available.innerHTML = S.agents
+    .filter(a => !currentAgents.includes(a.id))
+    .map(a => `<button type="button" class="plan-edit-add" onclick="addPlanAgent('${escapeHtml(a.id)}')">
+        <span>${a.icon}</span> ${escapeHtml(a.name)}
+      </button>`).join('');
+
+  openModal('plan-edit-modal');
+}
+window.openPlanEditor = openPlanEditor;
+
+function addPlanAgent(id) {
+  if (!S.lastPlan) S.lastPlan = { agents: [], reason: '手動編集' };
+  if (!S.lastPlan.agents.includes(id)) S.lastPlan.agents.push(id);
+  openPlanEditor(); // 再描画
+}
+window.addPlanAgent = addPlanAgent;
+
+function removePlanAgent(id) {
+  if (!S.lastPlan) return;
+  S.lastPlan.agents = S.lastPlan.agents.filter(a => a !== id);
+  openPlanEditor();
+}
+window.removePlanAgent = removePlanAgent;
+
+function movePlanAgent(idx, dir) {
+  if (!S.lastPlan) return;
+  const arr = S.lastPlan.agents;
+  const j = idx + dir;
+  if (j < 0 || j >= arr.length) return;
+  [arr[idx], arr[j]] = [arr[j], arr[idx]];
+  openPlanEditor();
+}
+window.movePlanAgent = movePlanAgent;
+
+function rerunWithEditedPlan() {
+  if (!S.lastPlan || !S.lastPlan.agents.length) { showToast('エージェントを 1 つ以上選択してください'); return; }
+  if (!S.lastGoal) { showToast('課題が取得できません'); return; }
+  closeModal('plan-edit-modal');
+  _executeOrchestrator(S.lastGoal, S.lastPlan.agents);
+}
+window.rerunWithEditedPlan = rerunWithEditedPlan;
 
 // ── エージェントナビ & カード ─────────────────────────────────
 function renderAgentNav() {
@@ -689,9 +756,10 @@ function renderExperimentResults(goal, data) {
   showToast(`実験完了: ${records.length} バリアント`);
 }
 
-async function _executeOrchestrator(goal) {
+async function _executeOrchestrator(goal, forcedAgents = null) {
   if (S.running) return;
   S.running = true;
+  S.lastGoal = goal;
 
   // ランディング → 実行エリアへ切替
   document.getElementById('orch-landing').style.display = 'none';
@@ -721,7 +789,13 @@ async function _executeOrchestrator(goal) {
   // プランブロック
   const planBlock = document.createElement('div');
   planBlock.className = 'plan-block';
-  planBlock.innerHTML = `<div class="plan-title">AGENT PIPELINE</div><div class="plan-steps" id="plan-steps-row"></div><div class="plan-reason" id="plan-reason"></div>`;
+  planBlock.innerHTML = `
+    <div class="plan-title-row">
+      <div class="plan-title">AGENT PIPELINE</div>
+      <button type="button" class="plan-edit-btn" onclick="openPlanEditor()" title="エージェント列を編集して再実行">✎ 編集して再実行</button>
+    </div>
+    <div class="plan-steps" id="plan-steps-row"></div>
+    <div class="plan-reason" id="plan-reason"></div>`;
   execContent.appendChild(planBlock);
 
   // エージェント出力コンテナ
@@ -751,7 +825,7 @@ async function _executeOrchestrator(goal) {
 
   // SSE 開始
   try {
-    await _streamPipeline(goal, taskRecord, planBlock, agentOutputs, finalOutput);
+    await _streamPipeline(goal, taskRecord, planBlock, agentOutputs, finalOutput, forcedAgents);
   } catch (e) {
     setBadge('error', '❌ エラー');
     console.error('orchestrator error', e);
@@ -769,11 +843,13 @@ async function _executeOrchestrator(goal) {
   }
 }
 
-async function _streamPipeline(goal, taskRecord, planBlock, agentOutputs, finalOutput) {
+async function _streamPipeline(goal, taskRecord, planBlock, agentOutputs, finalOutput, forcedAgents = null) {
+  const body = { goal, context: S.ctx };
+  if (Array.isArray(forcedAgents) && forcedAgents.length) body.forced_agents = forcedAgents;
   const res = await fetch(`${API_BASE}/api/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ goal, context: S.ctx }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -814,6 +890,8 @@ function handleSSEEvent(event, taskRecord, planBlock, agentOutputs, finalOutput,
 
     case 'plan': {
       taskRecord.agents = data.agents;
+      S.lastGoal = taskRecord.goal || S.lastGoal;
+      S.lastPlan = { agents: [...data.agents], reason: data.reason };
       setBadge('running', '▶ 実行中');
       const stepsRow = document.getElementById('plan-steps-row');
       const reasonEl = document.getElementById('plan-reason');
@@ -1132,7 +1210,13 @@ function renderRestoredTask(rec) {
   // プランブロック
   const planBlock = document.createElement('div');
   planBlock.className = 'plan-block';
-  planBlock.innerHTML = `<div class="plan-title">AGENT PIPELINE</div><div class="plan-steps" id="plan-steps-row"></div><div class="plan-reason" id="plan-reason"></div>`;
+  planBlock.innerHTML = `
+    <div class="plan-title-row">
+      <div class="plan-title">AGENT PIPELINE</div>
+      <button type="button" class="plan-edit-btn" onclick="openPlanEditor()" title="エージェント列を編集して再実行">✎ 編集して再実行</button>
+    </div>
+    <div class="plan-steps" id="plan-steps-row"></div>
+    <div class="plan-reason" id="plan-reason"></div>`;
   execContent.appendChild(planBlock);
   const stepsRow = document.getElementById('plan-steps-row');
   if (stepsRow) {
