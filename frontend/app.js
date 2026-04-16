@@ -1026,26 +1026,51 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// marked の一度きりセットアップ（GFM + highlight.js）
+let _mdReady = false;
+function _setupMarkdown() {
+  if (_mdReady) return;
+  if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') return;
+  if (typeof hljs !== 'undefined' && marked.use) {
+    marked.use({
+      gfm: true,
+      breaks: true,
+      async: false,
+      hooks: {
+        postprocess(html) { return html; },
+      },
+      renderer: {
+        code(code, lang) {
+          const language = hljs.getLanguage(lang) ? lang : null;
+          const highlighted = language
+            ? hljs.highlight(code, { language, ignoreIllegals: true }).value
+            : hljs.highlightAuto(code).value;
+          return `<pre><code class="hljs language-${language || 'plaintext'}">${highlighted}</code></pre>`;
+        },
+      },
+    });
+  } else if (marked.use) {
+    marked.use({ gfm: true, breaks: true, async: false });
+  }
+  _mdReady = true;
+}
+
 function renderMarkdown(text) {
   if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/^---$/gm, '<hr>')
-    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
-    .replace(/^\* (.+)$/gm, '<li>$1</li>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/^(\d+)\. (.+)$/gm, '<li>$1. $2</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>')
-    .replace(/^(.+)$/gm, (m) => m.startsWith('<') ? m : `<p>${m}</p>`)
-    .replace(/<p><\/p>/g, '');
+  _setupMarkdown();
+  if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+    // フォールバック：ライブラリが読めていない場合は安全な textContent 化のみ
+    const escaped = String(text)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `<pre>${escaped}</pre>`;
+  }
+  try {
+    const html = marked.parse(text, { gfm: true, breaks: true, async: false });
+    return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] });
+  } catch (e) {
+    console.error('markdown render failed', e);
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 }
 
 function toggleMenu() {
@@ -1055,14 +1080,26 @@ function toggleMenu() {
 window.toggleMenu = toggleMenu;
 
 // ── テーマ切替 ─────────────────────────────────────────────────
+function _applyHljsTheme(theme) {
+  const light = document.getElementById('hljs-light');
+  const dark = document.getElementById('hljs-dark');
+  if (!light || !dark) return;
+  if (theme === 'dark') { light.disabled = true; dark.disabled = false; }
+  else { light.disabled = false; dark.disabled = true; }
+}
+
 function toggleTheme() {
   const root = document.documentElement;
   const cur = root.getAttribute('data-theme') || 'light';
   const next = cur === 'dark' ? 'light' : 'dark';
   root.setAttribute('data-theme', next);
+  _applyHljsTheme(next);
   try { localStorage.setItem('di-theme', next); } catch {}
 }
 window.toggleTheme = toggleTheme;
+
+// 起動時に一度 hljs テーマを現状に合わせる
+_applyHljsTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 // OS のテーマ変更に追従（localStorage が未設定のときのみ）
 if (window.matchMedia) {
@@ -1071,7 +1108,9 @@ if (window.matchMedia) {
     try {
       if (localStorage.getItem('di-theme')) return; // 明示保存済みは尊重
     } catch {}
-    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    const next = e.matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    _applyHljsTheme(next);
   });
 }
 

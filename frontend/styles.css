@@ -318,13 +318,39 @@ body{display:flex;flex-direction:column;height:100vh;margin:0;overflow:hidden;fo
 .ao-body li,.fo-body li{margin:3px 0;line-height:1.65;}
 .ao-body strong,.fo-body strong{font-weight:700;color:var(--text);}
 .ao-body em,.fo-body em{font-style:italic;}
-.ao-body code,.fo-body code{font-family:var(--mono);background:var(--panel);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--blue);}
-.ao-body pre,.fo-body pre{background:var(--panel);border:1px solid var(--border);padding:10px 12px;border-radius:4px;overflow-x:auto;margin:8px 0;}
-.ao-body hr,.fo-body hr{border:none;border-top:1px solid var(--border);margin:12px 0;}
-.ao-body blockquote,.fo-body blockquote{border-left:3px solid var(--blue-lt);padding:4px 12px;color:var(--muted);margin:8px 0;}
-.ao-body table,.fo-body table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px;}
-.ao-body th,.fo-body th{background:var(--panel);border:1px solid var(--border);padding:6px 10px;text-align:left;font-weight:600;}
-.ao-body td,.fo-body td{border:1px solid var(--border);padding:5px 10px;}
+/* inline code と fenced code（.hljs）の衝突回避：inline は :not(pre) > code で narrow */
+.ao-body :not(pre) > code,.fo-body :not(pre) > code,.msg-bubble :not(pre) > code{
+  font-family:var(--mono);background:var(--panel);padding:1px 5px;border-radius:var(--r-sm);font-size:var(--t-xs);color:var(--blue);
+}
+.ao-body pre,.fo-body pre,.msg-bubble pre{
+  background:var(--panel);border:1px solid var(--border);padding:var(--s-3) var(--s-4);border-radius:var(--r-md);overflow-x:auto;margin:var(--s-2) 0;
+}
+.ao-body pre code.hljs,.fo-body pre code.hljs,.msg-bubble pre code.hljs{
+  background:transparent;padding:0;font-size:var(--t-sm);color:inherit;display:block;
+}
+.ao-body hr,.fo-body hr{border:none;border-top:1px solid var(--border);margin:var(--s-3) 0;}
+.ao-body blockquote,.fo-body blockquote,.msg-bubble blockquote{border-left:3px solid var(--blue-lt);padding:var(--s-1) var(--s-3);color:var(--muted);margin:var(--s-2) 0;}
+
+/* GFM テーブル */
+.ao-body table,.fo-body table,.msg-bubble table{border-collapse:collapse;width:100%;margin:var(--s-2) 0;font-size:var(--t-sm);}
+.ao-body th,.fo-body th,.msg-bubble th{background:var(--panel);border:1px solid var(--border);padding:var(--s-2) var(--s-3);text-align:left;font-weight:600;}
+.ao-body td,.fo-body td,.msg-bubble td{border:1px solid var(--border);padding:var(--s-1) var(--s-3);}
+.ao-body tr:nth-child(even) td,.fo-body tr:nth-child(even) td{background:color-mix(in srgb,var(--panel) 60%,transparent);}
+
+/* GFM 取り消し線 */
+.ao-body del,.fo-body del,.msg-bubble del{color:var(--muted);text-decoration:line-through;}
+
+/* GFM task list */
+.ao-body li.task-list-item,.fo-body li.task-list-item{list-style:none;margin-left:-18px;padding-left:0;}
+.ao-body li input[type="checkbox"],.fo-body li input[type="checkbox"]{margin-right:8px;accent-color:var(--blue);}
+
+/* nested list のインデント */
+.ao-body ul ul,.ao-body ol ol,.ao-body ul ol,.ao-body ol ul,
+.fo-body ul ul,.fo-body ol ol,.fo-body ul ol,.fo-body ol ul{margin:var(--s-1) 0 var(--s-1) var(--s-4);}
+
+/* リンク */
+.ao-body a,.fo-body a,.msg-bubble a{color:var(--blue2);text-decoration:underline;text-underline-offset:2px;}
+.ao-body a:hover,.fo-body a:hover,.msg-bubble a:hover{color:var(--blue);}
 
 /* MOBILE */
 @media(max-width:768px){
