@@ -53,7 +53,7 @@
     <!-- ORCH mode nav -->
     <div id="ln-orch-content" style="display:flex;flex:1;flex-direction:column;overflow:hidden;">
       <div class="lp-section">task history</div>
-      <div id="history-list"><div class="hist-empty">タスクはまだありません。</div></div>
+      <div id="history-list"></div>
       <div class="ctx-panel">
         <div class="ctx-label">context data</div>
         <div class="ctx-row"><span class="ctx-dot" id="cdot-survey"></span><span class="ctx-key">survey</span><span class="ctx-val" id="cval-survey">—</span></div>
@@ -154,8 +154,8 @@
         <div class="orch-landing-inner">
           <div class="landing-hero">
             <p class="landing-label">// HARNESS</p>
-            <h1 class="landing-title">マーケティング課題を入力</h1>
-            <p class="landing-desc">AIが自動で最適なエージェントを選び、リサーチから戦略・企画・コピーまで一気通貫で実行します。DI独自のナレッジとフレームワークに基づいた提案を行います。</p>
+            <h1 class="landing-title"><span class="hero-serif">Marketing × AI</span><br>を、一気通貫に。</h1>
+            <p class="landing-desc">リサーチ・戦略・企画・コピー・メディアまで。<br>AI が課題に応じてエージェントを自動選択し、DI のナレッジで裏付けた提案を数分で返します。</p>
           </div>
           <div class="orch-landing-input-wrap">
             <div class="orch-landing-row">
@@ -164,6 +164,7 @@
             </div>
             <div id="hint-chips" class="iz-hints" style="margin-top:10px;"></div>
           </div>
+          <div id="starter-cards" class="starter-grid"></div>
           <div class="flow-section">
             <div class="flow-label">How it works</div>
             <div class="flow-cards">

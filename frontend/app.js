@@ -40,6 +40,7 @@ const S = {
 async function init() {
   loadCtxFromStorage();
   renderHintChips();
+  renderStarterCards();
   await loadAgents();
   loadPersonaPresets();
   loadTaskHistoryFromServer();
@@ -204,6 +205,37 @@ function fillTask(text) {
   if (ti) { ti.value = text; ti.focus(); }
 }
 window.fillTask = fillTask;
+
+// スターターカード — HINTS をカテゴリ推定して richer なカードで描画
+const _STARTER_CAT = [
+  { key: 'research', label: 'RESEARCH', color: '#0A6E6E', icon: '🔍', rx: /(調査|リサーチ|インタビュー|座談|本音|ペルソナ)/ },
+  { key: 'strategy', label: 'STRATEGY', color: '#C8321A', icon: '🗺', rx: /(戦略|企画|ポジショニング|ジャーニー|原因|分析)/ },
+  { key: 'creative', label: 'CREATIVE', color: '#B45309', icon: '✍️', rx: /(コンセプト|コピー|アイデア|施策|コンテンツ|CVR)/ },
+  { key: 'media',    label: 'MEDIA',    color: '#4338CA', icon: '📺', rx: /(メディア|SNS|広告|デジタル|配信)/ },
+];
+
+function _classifyHint(text) {
+  for (const c of _STARTER_CAT) if (c.rx.test(text)) return c;
+  return _STARTER_CAT[1]; // default: strategy
+}
+
+function renderStarterCards() {
+  const container = document.getElementById('starter-cards');
+  if (!container) return;
+  container.innerHTML = HINTS.map(h => {
+    const c = _classifyHint(h);
+    return `
+      <button type="button" class="starter-card" data-cat="${c.key}" onclick="fillTask(this.dataset.text)" data-text="${escapeHtml(h)}">
+        <span class="starter-card-head">
+          <span class="starter-card-icon" style="background:${c.color}22;color:${c.color};">${c.icon}</span>
+          <span class="starter-card-cat" style="color:${c.color};">${c.label}</span>
+        </span>
+        <span class="starter-card-body">${escapeHtml(h)}</span>
+        <span class="starter-card-arrow" aria-hidden="true">→</span>
+      </button>`;
+  }).join('');
+}
+window.renderStarterCards = renderStarterCards;
 
 // ── エージェントナビ & カード ─────────────────────────────────
 function renderAgentNav() {
@@ -831,7 +863,22 @@ function renderTaskHistory() {
   const list = document.getElementById('history-list');
   if (!list) return;
   if (S.tasks.length === 0) {
-    list.innerHTML = '<div class="hist-empty">タスクはまだありません。</div>';
+    list.innerHTML = `
+      <div class="hist-empty empty-state">
+        <svg class="empty-state-illus" width="72" height="72" viewBox="0 0 72 72" fill="none" aria-hidden="true">
+          <rect x="14" y="18" width="36" height="44" rx="3" stroke="currentColor" stroke-width="2" fill="none" opacity=".25"/>
+          <rect x="20" y="12" width="36" height="44" rx="3" stroke="currentColor" stroke-width="2" fill="none" opacity=".55"/>
+          <rect x="26" y="6" width="36" height="44" rx="3" stroke="currentColor" stroke-width="2.5" fill="none"/>
+          <line x1="32" y1="18" x2="56" y2="18" stroke="currentColor" stroke-width="2" opacity=".6"/>
+          <line x1="32" y1="26" x2="50" y2="26" stroke="currentColor" stroke-width="2" opacity=".45"/>
+          <line x1="32" y1="34" x2="46" y2="34" stroke="currentColor" stroke-width="2" opacity=".30"/>
+          <circle cx="60" cy="46" r="8" fill="var(--gold)"/>
+          <line x1="60" y1="42" x2="60" y2="50" stroke="#1A1203" stroke-width="2" stroke-linecap="round"/>
+          <line x1="56" y1="46" x2="64" y2="46" stroke="#1A1203" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div class="empty-state-title">まだ履歴がありません</div>
+        <div class="empty-state-desc">最初のタスクを実行すると<br>ここに結果が残ります。</div>
+      </div>`;
     return;
   }
   list.innerHTML = S.tasks.slice(0, 10).map(t => `
