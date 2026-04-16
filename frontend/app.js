@@ -135,11 +135,16 @@ function setMode(mode) {
   S.mode = mode;
   document.getElementById('tab-orch').classList.toggle('active', mode === 'orch');
   document.getElementById('tab-agents').classList.toggle('active', mode === 'agents');
+  document.getElementById('tab-exp')?.classList.toggle('active', mode === 'exp');
   document.getElementById('view-orch').style.display = mode === 'orch' ? 'flex' : 'none';
   document.getElementById('view-agents').style.display = mode === 'agents' ? 'flex' : 'none';
+  document.getElementById('view-exp').style.display = mode === 'exp' ? 'flex' : 'none';
   document.getElementById('view-chat').style.display = 'none';
   document.getElementById('ln-orch-content').style.display = mode === 'orch' ? 'flex' : 'none';
   document.getElementById('ln-agents-content').style.display = mode === 'agents' ? 'flex' : 'none';
+  if (mode === 'exp' && document.getElementById('exp-variants')?.children.length === 0) {
+    addExpVariant(); addExpVariant();
+  }
 }
 
 // ── コンテキスト管理 ──────────────────────────────────────────
@@ -518,6 +523,171 @@ async function runOrchestratorBottom() {
 
 window.runOrchestrator = runOrchestrator;
 window.runOrchestratorBottom = runOrchestratorBottom;
+
+// ── EXPERIMENT モード ─────────────────────────────────────────
+let _expSeq = 0;
+function addExpVariant() {
+  _expSeq += 1;
+  const id = 'v' + _expSeq;
+  const wrap = document.getElementById('exp-variants');
+  if (!wrap) return;
+  const personaOptions = '<option value="">— 自由入力 / プリセットなし —</option>'
+    + (S.personas || []).map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.label)}</option>`).join('');
+  const box = document.createElement('div');
+  box.className = 'exp-variant';
+  box.dataset.vid = id;
+  box.innerHTML = `
+    <div class="exp-variant-head">
+      <span class="exp-variant-title">${id}</span>
+      <button type="button" class="exp-del-btn" onclick="removeExpVariant('${id}')" aria-label="削除">✕</button>
+    </div>
+    <label class="exp-sublabel">ペルソナプリセット</label>
+    <select class="exp-persona-sel" onchange="applyExpPersonaToVariant('${id}', this.value)">${personaOptions}</select>
+    <label class="exp-sublabel">ペルソナ（自由入力可）</label>
+    <textarea class="exp-persona-ta" data-field="persona" rows="4" placeholder="田中美咲（32歳・会社員）…"></textarea>
+    <label class="exp-sublabel">調査データ / ブリーフ（任意）</label>
+    <textarea class="exp-brief-ta" data-field="brief" rows="2" placeholder="案件背景や既存の調査結果があれば…"></textarea>`;
+  wrap.appendChild(box);
+}
+window.addExpVariant = addExpVariant;
+
+function removeExpVariant(id) {
+  const el = document.querySelector(`.exp-variant[data-vid="${id}"]`);
+  if (el) el.remove();
+}
+window.removeExpVariant = removeExpVariant;
+
+function applyExpPersonaToVariant(vid, personaId) {
+  const box = document.querySelector(`.exp-variant[data-vid="${vid}"]`);
+  if (!box || !personaId) return;
+  const p = (S.personas || []).find(x => x.id === personaId);
+  if (!p) return;
+  const ta = box.querySelector('.exp-persona-ta');
+  if (ta) ta.value = formatPersonaText(p);
+}
+window.applyExpPersonaToVariant = applyExpPersonaToVariant;
+
+async function runExperiment() {
+  const goal = (document.getElementById('exp-goal')?.value || '').trim();
+  if (!goal) { showToast('課題を入力してください'); return; }
+  const variantEls = [...document.querySelectorAll('.exp-variant')];
+  if (variantEls.length < 2) { showToast('バリアントを 2 つ以上追加してください'); return; }
+  const contexts = variantEls.map(v => ({
+    persona: v.querySelector('[data-field="persona"]')?.value.trim() || '',
+    brief:   v.querySelector('[data-field="brief"]')?.value.trim() || '',
+    survey:  '',
+  }));
+  const judge = !!document.getElementById('exp-judge')?.checked;
+  const concurrency = parseInt(document.getElementById('exp-concurrency')?.value || '2', 10);
+
+  const runBtn = document.getElementById('exp-run');
+  const results = document.getElementById('exp-results');
+  if (runBtn) { runBtn.disabled = true; runBtn.textContent = '⏳ 実行中... (数分かかります)'; }
+  results.innerHTML = `
+    <div class="exp-loading">
+      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="18" stroke="var(--blue-lt)" stroke-width="3" fill="none"/>
+        <circle cx="24" cy="24" r="18" stroke="var(--blue)" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="30 120">
+          <animateTransform attributeName="transform" type="rotate" from="0 24 24" to="360 24 24" dur="1.2s" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+      <div class="exp-loading-title">${variantEls.length} バリアントを並列実行中…</div>
+      <div class="exp-loading-desc">各バリアントで plan → agents → synthesis を実行します。${judge ? '完了後 AI Judge が比較評価します。' : ''}</div>
+    </div>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/experiment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal, contexts, concurrency, judge }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    renderExperimentResults(goal, data);
+  } catch (e) {
+    results.innerHTML = '';
+    appendExecErrorInto(results, e.message);
+    showToast('実験失敗: ' + e.message);
+  } finally {
+    if (runBtn) { runBtn.disabled = false; runBtn.textContent = '▶ 実験を実行'; }
+  }
+}
+window.runExperiment = runExperiment;
+
+function appendExecErrorInto(container, message) {
+  const box = document.createElement('div');
+  box.className = 'exec-error';
+  const head = document.createElement('div');
+  head.className = 'exec-error-head';
+  const label = document.createElement('span');
+  label.textContent = '⚠ エラー詳細';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'copy-btn';
+  btn.textContent = '📋 コピー';
+  btn.onclick = () => copyText(String(message), btn);
+  head.appendChild(label);
+  head.appendChild(btn);
+  const pre = document.createElement('pre');
+  pre.textContent = String(message);
+  box.appendChild(head);
+  box.appendChild(pre);
+  container.appendChild(box);
+}
+
+function renderExperimentResults(goal, data) {
+  const container = document.getElementById('exp-results');
+  container.innerHTML = '';
+  const records = data.records || [];
+  const judge = data.judge || null;
+
+  // Judge ランキングバナー
+  if (judge && Array.isArray(judge.ranking) && judge.ranking.length) {
+    const banner = document.createElement('div');
+    banner.className = 'exp-judge-banner';
+    const orderList = judge.ranking.map((vid, i) => `<span class="exp-rank-pill r${i+1}">${i+1}. ${escapeHtml(vid)}</span>`).join('');
+    banner.innerHTML = `
+      <div class="exp-judge-head">
+        <span class="exp-judge-title">🏆 AI Judge ランキング</span>
+        <button type="button" class="copy-btn" onclick="copyText(${JSON.stringify(JSON.stringify(judge))}, this)">📋 JSONコピー</button>
+      </div>
+      <div class="exp-rank-row">${orderList}</div>
+      <div class="exp-judge-summary">${escapeHtml(judge.summary || '')}</div>`;
+    container.appendChild(banner);
+  }
+
+  // バリアント結果
+  const grid = document.createElement('div');
+  grid.className = 'exp-result-grid';
+  grid.style.setProperty('--n', String(Math.min(records.length, 3)));
+  records.forEach(r => {
+    const hasError = (r.errors || []).length > 0 && !r.synthesis;
+    const synth = hasError
+      ? `⚠️ 失敗\n\n` + (r.errors || []).map(e => '- ' + e).join('\n')
+      : (r.synthesis || '*(本文なし)*');
+    const agents = (r.plan?.agents || []).join(' → ');
+    const card = document.createElement('div');
+    card.className = 'exp-result-card' + (hasError ? ' exp-result-error' : '');
+    card.innerHTML = `
+      <div class="exp-result-head">
+        <span class="exp-result-id">${escapeHtml(r.variant_id)}</span>
+        <span class="exp-result-meta">${escapeHtml(String(r.elapsed_s) + 's')} · ${escapeHtml(agents)}</span>
+        <button type="button" class="copy-btn" style="margin-left:auto;">📋 コピー</button>
+      </div>
+      <div class="exp-result-plan"><strong>plan:</strong> ${escapeHtml(r.plan?.reason || '')}</div>
+      <div class="exp-result-body"></div>`;
+    const body = card.querySelector('.exp-result-body');
+    body.innerHTML = renderMarkdown(synth);
+    card.querySelector('.copy-btn').onclick = (e) => { e.stopPropagation(); copyText(synth, card.querySelector('.copy-btn')); };
+    grid.appendChild(card);
+  });
+  container.appendChild(grid);
+
+  showToast(`実験完了: ${records.length} バリアント`);
+}
 
 async function _executeOrchestrator(goal) {
   if (S.running) return;

@@ -53,23 +53,34 @@ class ExperimentRecord:
     started_at: str = ""
     finished_at: str = ""
 
-    def to_dict(self) -> dict:
-        return {
+    def to_dict(self, include_text: bool = True) -> dict:
+        """
+        include_text=True: 本文（agent_outputs[].output / synthesis）をレスポンスに含める。
+        UI の side-by-side 表示に必要。本文上限は 15KB / 30KB。
+        """
+        agent_list = []
+        for a in self.agent_outputs:
+            out_txt = a.get("output", "") or ""
+            entry = {"agent_id": a["agent_id"], "len": len(out_txt)}
+            if include_text:
+                entry["output"] = out_txt[:15000]
+            agent_list.append(entry)
+        base = {
             "variant_id": self.variant_id,
             "goal": self.goal,
             "context_keys": [k for k, v in self.context.items() if v],
             "forced_agents": self.forced_agents,
             "plan": self.plan,
-            "agent_outputs": [
-                {"agent_id": a["agent_id"], "len": len(a["output"])}
-                for a in self.agent_outputs
-            ],
+            "agent_outputs": agent_list,
             "synthesis_len": len(self.synthesis),
             "errors": self.errors,
             "elapsed_s": round(self.elapsed_s, 2),
             "started_at": self.started_at,
             "finished_at": self.finished_at,
         }
+        if include_text:
+            base["synthesis"] = (self.synthesis or "")[:30000]
+        return base
 
 
 async def _consume_pipeline(

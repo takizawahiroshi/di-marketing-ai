@@ -34,6 +34,7 @@
   <div class="mode-tabs">
     <button class="mode-tab active" id="tab-orch" onclick="setMode('orch')">HARNESS</button>
     <button class="mode-tab" id="tab-agents" onclick="setMode('agents')">AGENTS</button>
+    <button class="mode-tab" id="tab-exp" onclick="setMode('exp')">EXPERIMENT</button>
   </div>
   <div class="hdr-space"></div>
   <div class="hdr-status">
@@ -210,6 +211,44 @@
           <button id="run-btn-bottom" onclick="runOrchestratorBottom()" style="padding:11px 24px;background:var(--blue);color:#FFFFFF;border:none;font-size:14px;font-family:var(--sans);font-weight:700;cursor:pointer;border-radius:6px;white-space:nowrap;flex-shrink:0;min-width:90px;box-shadow:var(--shadow-md);">送信</button>
         </div>
       </div>
+    </div>
+
+    <!-- VIEW: EXPERIMENT -->
+    <div id="view-exp" style="display:none;flex:1;flex-direction:column;overflow-y:auto;padding:24px 28px;background:var(--bg);">
+      <div class="exp-hero">
+        <p class="landing-label">// EXPERIMENT</p>
+        <h1 class="landing-title">A/B <span class="hero-serif">バリアント比較</span></h1>
+        <p class="landing-desc">同じ課題を複数のコンテキスト（ペルソナ等）で並列実行し、AI Judge で優劣を比較します。<br>最適なアプローチを素早く発見するためのモード。</p>
+      </div>
+
+      <div class="exp-setup">
+        <div class="exp-field">
+          <label class="exp-label">課題</label>
+          <textarea id="exp-goal" class="exp-goal" rows="2" placeholder="例: 30代女性向け新商品のキャッチコピーを作りたい"></textarea>
+        </div>
+
+        <div class="exp-field">
+          <div class="exp-label-row">
+            <label class="exp-label">バリアント</label>
+            <button type="button" class="exp-add-btn" onclick="addExpVariant()">+ バリアント追加</button>
+          </div>
+          <div id="exp-variants" class="exp-variants"></div>
+        </div>
+
+        <div class="exp-field exp-options">
+          <label class="exp-check"><input type="checkbox" id="exp-judge" checked> AI Judge でランキング</label>
+          <label class="exp-check">並列実行数:
+            <select id="exp-concurrency">
+              <option value="1">1</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+            </select>
+          </label>
+          <button type="button" id="exp-run" class="exp-run-btn" onclick="runExperiment()">▶ 実験を実行</button>
+        </div>
+      </div>
+
+      <div id="exp-results"></div>
     </div>
   </div>
 </div>
