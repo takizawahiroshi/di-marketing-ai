@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DI Marketing AI v6</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" crossorigin>
+<style>
+:root{
+  --blue:#3460FB;--blue2:#2A4ED0;--blt:rgba(52,96,251,.09);
+  --teal:#00A896;--tlt:rgba(0,168,150,.09);
+  --green:#059669;--glt:rgba(5,150,105,.09);
+  --amber:#D97706;--alt:rgba(217,119,6,.09);
+  --red:#DC2626;--rlt:rgba(220,38,38,.07);
+  --gold:#B45309;--golt:rgba(180,83,9,.08);
+  --purple:#7C3AED;--plt:rgba(124,58,237,.08);
+  --text:#111827;--muted:#6B7280;--dim:#9CA3AF;
+  --bg:#FFFFFF;--surf:#F8F9FB;--panel:#F1F4F8;
+  --b1:#E5E8EF;--b2:#D1D5E0;
+  --mono:"DM Mono",monospace;
+  --sans:"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
+  --r:8px;--rl:12px;
+  --sh:0 1px 3px rgba(0,0,0,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);color:var(--text);background:var(--bg);min-height:700px;}
+button{cursor:pointer;font-family:inherit;border:none;background:transparent;}
+textarea,select{font-family:inherit;outline:none;}
+textarea{resize:none;}
+::placeholder{color:var(--dim);}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:4px;}
+
+/* LAYOUT */
+#app{display:flex;flex-direction:column;}
+#hdr{height:50px;display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--bg);border-bottom:1px solid var(--b1);position:sticky;top:0;z-index:10;}
+#body{display:flex;min-height:0;}
+#sb{width:196px;flex-shrink:0;background:var(--surf);border-right:1px solid var(--b1);display:flex;flex-direction:column;min-height:650px;}
+#main{flex:1;min-width:0;display:flex;flex-direction:column;}
+#rp{width:240px;flex-shrink:0;background:var(--bg);border-left:1px solid var(--b1);display:flex;flex-direction:column;}
+
+/* HEADER */
+.logo{width:28px;height:28px;background:var(--blue);border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:500;color:#fff;flex-shrink:0;}
+.vbadge{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:100px;background:var(--tlt);color:var(--teal);border:1px solid rgba(0,168,150,.25);}
+.hdiv{width:1px;height:20px;background:var(--b1);}
+.hsp{flex:1;}
+.arch{display:flex;align-items:center;gap:4px;}
+.an{display:flex;align-items:center;gap:4px;padding:4px 9px;border-radius:6px;border:1px solid var(--b1);color:var(--dim);font-family:var(--mono);font-size:9px;white-space:nowrap;transition:all .2s;}
+.an.act{border-color:var(--blue);color:var(--blue);background:var(--blt);}
+.an.done{border-color:rgba(0,168,150,.4);color:var(--teal);background:var(--tlt);}
+.asep{color:var(--dim);font-size:10px;}
+.msel{background:var(--surf);border:1px solid var(--b1);color:var(--muted);font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:6px;}
+
+/* SIDEBAR */
+.sb-hdr{padding:9px 13px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--b1);}
+.sb-body{flex:1;overflow-y:auto;}
+.sb-emp{padding:20px 13px;font-size:11px;color:var(--dim);text-align:center;line-height:1.65;}
+.hi{padding:9px 13px;border-left:2px solid transparent;cursor:pointer;transition:all .12s;border-bottom:1px solid var(--b1);}
+.hi:hover{background:var(--blt);border-left-color:var(--blue);}
+.hi-goal{font-size:11px;color:var(--text);line-height:1.4;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.hi-meta{display:flex;gap:5px;font-family:var(--mono);font-size:9px;color:var(--dim);}
+.hsc{padding:1px 5px;border-radius:100px;font-family:var(--mono);font-size:9px;}
+.sh{background:var(--glt);color:var(--green);}
+.sm{background:var(--alt);color:var(--amber);}
+.sl{background:var(--rlt);color:var(--red);}
+.sb-foot{padding:10px 13px;border-top:1px solid var(--b1);}
+.clrbtn{width:100%;padding:6px;border:1px solid var(--b1);color:var(--dim);font-family:var(--mono);font-size:9px;border-radius:6px;transition:all .12s;background:var(--bg);}
+.clrbtn:hover{border-color:var(--red);color:var(--red);}
+
+/* INPUT */
+#iz{padding:14px 18px 12px;border-bottom:1px solid var(--b1);background:var(--bg);}
+.izlbl{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:8px;}
+.izlbl::after{content:"";flex:1;height:1px;background:var(--b1);}
+.izrow{display:flex;gap:9px;align-items:flex-end;}
+#tinput{flex:1;border:1px solid var(--b1);color:var(--text);font-size:13px;padding:10px 13px;border-radius:var(--r);background:var(--surf);transition:border-color .15s;min-height:50px;max-height:100px;line-height:1.7;}
+#tinput:focus{border-color:var(--blue);}
+#rbtn{padding:11px 22px;background:var(--blue);color:#fff;font-size:12px;font-family:var(--mono);font-weight:500;border-radius:var(--r);transition:all .15s;white-space:nowrap;letter-spacing:.04em;}
+#rbtn:hover:not(:disabled){background:var(--blue2);transform:translateY(-1px);}
+#rbtn:disabled{background:var(--dim);cursor:not-allowed;transform:none;}
+.hints{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+.hint{font-size:10px;padding:4px 10px;background:var(--bg);border:1px solid var(--b1);color:var(--muted);border-radius:100px;cursor:pointer;transition:all .12s;font-family:var(--mono);}
+.hint:hover{border-color:var(--blue);color:var(--blue);background:var(--blt);}
+
+/* EXEC */
+#exec{padding:16px 18px;display:flex;flex-direction:column;gap:10px;}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:60px 0;opacity:.35;}
+.ei{font-size:30px;}
+.et{font-size:11px;color:var(--muted);font-family:var(--mono);text-align:center;line-height:1.8;}
+
+/* CARDS */
+.task-hdr{padding:13px 15px;border:1px solid var(--b1);border-radius:var(--rl);border-left:3px solid var(--blue);box-shadow:var(--sh);}
+.tgoal{font-size:14px;font-weight:500;line-height:1.5;margin-bottom:6px;}
+.tpills{display:flex;gap:6px;flex-wrap:wrap;}
+.pill{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:100px;border:1px solid;}
+.pp{background:var(--alt);color:var(--amber);border-color:rgba(217,119,6,.3);}
+.pr{background:var(--blt);color:var(--blue);border-color:rgba(52,96,251,.25);}
+.pd{background:var(--glt);color:var(--green);border-color:rgba(5,150,105,.3);}
+.pe{background:var(--rlt);color:var(--red);border-color:rgba(220,38,38,.25);}
+
+.plan-block{border:1px solid var(--b1);border-radius:var(--rl);overflow:hidden;box-shadow:var(--sh);}
+.ph{display:flex;align-items:center;gap:7px;padding:9px 13px;background:var(--surf);border-bottom:1px solid var(--b1);}
+.pl{font-family:var(--mono);font-size:9px;font-weight:500;letter-spacing:.1em;color:var(--blue);text-transform:uppercase;}
+.pb{padding:10px 13px;}
+.prat{font-size:11px;color:var(--muted);line-height:1.65;margin-bottom:9px;padding-left:9px;border-left:2px solid var(--b1);}
+.pipe{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.pn{display:flex;align-items:center;gap:4px;padding:5px 9px;background:var(--surf);border:1px solid var(--b1);border-radius:6px;font-family:var(--mono);font-size:10px;color:var(--muted);transition:all .2s;}
+.pn.act{border-color:var(--blue);color:var(--blue);background:var(--blt);}
+.pn.done{border-color:rgba(0,168,150,.4);color:var(--teal);background:var(--tlt);}
+.pn.warn{border-color:rgba(217,119,6,.35);color:var(--amber);background:var(--alt);}
+.pnev{border-color:rgba(180,83,9,.3)!important;color:var(--gold)!important;background:var(--golt)!important;}
+.parr{color:var(--dim);font-size:10px;}
+
+.acard{border:1px solid var(--b1);border-radius:var(--rl);overflow:hidden;box-shadow:var(--sh);}
+.ahdr{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--surf);border-bottom:1px solid var(--b1);}
+.anum{font-family:var(--mono);font-size:10px;color:var(--dim);min-width:20px;}
+.aname{font-family:var(--mono);font-size:11px;font-weight:500;flex:1;}
+.acat{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:100px;}
+.cr{background:var(--tlt);color:var(--teal);}
+.cs{background:var(--blt);color:var(--blue);}
+.cc{background:var(--plt);color:var(--purple);}
+.cm{background:var(--alt);color:var(--amber);}
+.ast{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;}
+.sr{color:var(--blue);}
+.sd{color:var(--green);}
+.sw{color:var(--amber);}
+.spin{display:inline-block;width:10px;height:10px;border:1.5px solid rgba(52,96,251,.2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.abody{padding:14px 16px;font-size:13px;line-height:1.85;}
+.baton{padding:6px 13px;border-top:1px solid var(--b1);background:var(--surf);font-family:var(--mono);font-size:10px;color:var(--muted);}
+
+.xpanel{border-top:1px solid var(--b1);overflow:hidden;max-height:0;transition:max-height .2s;}
+.xpanel.open{max-height:200px;overflow-y:auto;}
+.xbar{display:flex;align-items:center;gap:7px;padding:6px 13px;cursor:pointer;background:var(--surf);border-bottom:1px solid var(--b1);}
+.xbar:hover{background:var(--panel);}
+.xlbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;flex:1;}
+.hbg{font-size:9px;padding:2px 7px;border-radius:100px;font-family:var(--mono);}
+.hbp{background:var(--glt);color:var(--green);}
+.hbw{background:var(--alt);color:var(--amber);}
+.hbf{background:var(--rlt);color:var(--red);}
+.hbr{background:var(--blt);color:var(--blue);}
+.xcont{padding:8px 13px;}
+.xi{display:flex;gap:6px;padding:3px 0;font-family:var(--mono);font-size:10px;color:var(--muted);border-bottom:.5px solid var(--b1);}
+.xi:last-child{border:none;}
+.clprog{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:100px;background:var(--surf);border:1px solid var(--b1);color:var(--muted);}
+.clrow{display:flex;align-items:flex-start;gap:7px;padding:4px 0;border-bottom:.5px solid var(--b1);font-family:var(--mono);font-size:10px;}
+.clrow:last-child{border:none;}
+.clcb{width:13px;height:13px;border:1px solid var(--b2);border-radius:3px;flex-shrink:0;margin-top:1px;appearance:none;-webkit-appearance:none;background:var(--bg);}
+.clcb:checked{background:var(--teal);border-color:var(--teal);background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-size:9px;}
+.cltxt{flex:1;line-height:1.5;}
+.cltxt.done{color:var(--dim);text-decoration:line-through;}
+.drift{padding:6px 13px;border-top:1px solid rgba(217,119,6,.2);background:rgba(217,119,6,.05);font-family:var(--mono);font-size:10px;color:var(--amber);display:flex;gap:6px;}
+.dflag{display:inline;padding:1px 4px;background:rgba(217,119,6,.12);border-radius:3px;margin:0 2px;}
+
+.eval-card{border:1px solid rgba(180,83,9,.22);border-radius:var(--rl);overflow:hidden;box-shadow:var(--sh);}
+.evhdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--golt);border-bottom:1px solid rgba(180,83,9,.15);}
+.evlbl{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--gold);flex:1;}
+.evsc{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--gold);}
+.evbody{padding:14px 16px;font-size:13px;line-height:1.85;}
+.lblock{margin:0 16px 13px;padding:10px 13px;background:var(--surf);border-radius:var(--r);border-left:3px solid var(--gold);}
+.lblbl{font-family:var(--mono);font-size:9px;color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;}
+.litem{font-size:11px;color:var(--muted);line-height:1.65;padding:2px 0;}
+.mbadge{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:100px;background:var(--glt);color:var(--green);border:1px solid rgba(5,150,105,.2);margin:0 16px 12px;}
+.expbtn{display:inline-flex;margin:0 16px 13px;padding:5px 12px;border:1px solid var(--b1);color:var(--muted);font-family:var(--mono);font-size:10px;border-radius:6px;transition:all .12s;}
+.expbtn:hover{border-color:var(--teal);color:var(--teal);}
+
+/* RIGHT PANEL */
+.rptabs{display:flex;border-bottom:1px solid var(--b1);flex-shrink:0;}
+.rptab{flex:1;padding:8px 4px;font-family:var(--mono);font-size:9px;text-align:center;color:var(--dim);border:none;background:transparent;letter-spacing:.05em;text-transform:uppercase;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .12s;}
+.rptab:hover{color:var(--text);}
+.rptab.on{color:var(--blue);border-bottom-color:var(--blue);}
+.rpanel{flex:1;overflow-y:auto;padding:11px 12px;}
+.rplbl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px;}
+.rpemp{font-size:11px;color:var(--dim);text-align:center;padding:16px 0;line-height:1.6;}
+.mstats{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px;}
+.mstat{background:var(--surf);border:1px solid var(--b1);border-radius:var(--r);padding:8px 9px;}
+.msv{font-family:var(--mono);font-size:17px;font-weight:300;color:var(--teal);line-height:1;}
+.msl{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px;}
+.patcard{background:var(--surf);border:1px solid var(--b1);border-radius:var(--r);padding:8px;margin-bottom:6px;}
+.pchdr{display:flex;align-items:center;gap:4px;margin-bottom:4px;}
+.pcind{font-family:var(--mono);font-size:10px;color:var(--teal);font-weight:500;}
+.pcsc{font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:100px;margin-left:auto;}
+.pchi{background:var(--glt);color:var(--green);}
+.pcmi{background:var(--alt);color:var(--amber);}
+.pcags{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:4px;}
+.pcag{font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:3px;background:var(--bg);color:var(--dim);border:1px solid var(--b1);}
+.pclearn{font-size:10px;color:var(--muted);line-height:1.5;border-top:1px solid var(--b1);padding-top:4px;}
+.amitem{display:flex;align-items:center;gap:7px;padding:6px 7px;border:1px solid var(--b1);border-radius:var(--r);background:var(--surf);margin-bottom:4px;}
+.amname{font-family:var(--mono);font-size:10px;color:var(--muted);flex:1;}
+.amcat{font-family:var(--mono);font-size:8px;padding:1px 5px;border-radius:100px;}
+.hlog{display:flex;gap:6px;padding:3px 0;border-bottom:.5px solid var(--b1);font-family:var(--mono);font-size:10px;}
+.hlog:last-child{border:none;}
+.hlts{color:var(--dim);font-size:9px;flex-shrink:0;}
+.hlok{color:var(--green);}
+.hlwn{color:var(--amber);}
+.hler{color:var(--red);}
+.hlin{color:var(--muted);}
+
+/* MARKDOWN */
+.md h1,.md h2,.md h3{font-weight:600;line-height:1.35;margin:13px 0 5px;}
+.md h1{font-size:15px;border-bottom:1px solid var(--b1);padding-bottom:5px;}
+.md h2{font-size:14px;}
+.md h3{font-size:13px;color:var(--muted);}
+.md p{margin:5px 0;line-height:1.8;}
+.md ul,.md ol{margin:5px 0 5px 18px;}
+.md li{margin:3px 0;line-height:1.7;}
+.md strong{font-weight:600;}
+.md em{font-style:italic;color:var(--muted);}
+.md code{font-family:var(--mono);background:var(--surf);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--teal);}
+.md hr{border:none;border-top:1px solid var(--b1);margin:12px 0;}
+.md blockquote{border-left:3px solid var(--blue);padding:3px 11px;color:var(--muted);margin:7px 0;}
+.md table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px;}
+.md th{background:var(--surf);border:1px solid var(--b1);padding:5px 9px;font-weight:500;text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);}
+.md td{border:1px solid var(--b1);padding:4px 9px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.acard,.eval-card,.plan-block,.task-hdr{animation:fadeUp .2s ease;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="hdr">
+  <div class="logo">DI</div>
+  <span style="font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;">MARKETING AI</span>
+  <div class="vbadge">v6</div>
+  <div class="hdiv"></div>
+  <div class="arch">
+    <div class="an" id="an-init">◉ INIT</div>
+    <div class="asep">→</div>
+    <div class="an" id="an-plan">⬡ PLANNER</div>
+    <div class="asep">→</div>
+    <div class="an" id="an-gen">▶ GENERATOR</div>
+    <div class="asep">→</div>
+    <div class="an" id="an-eval">◈ EVALUATOR</div>
+  </div>
+  <div class="hsp"></div>
+  <select class="msel" id="msel">
+    <option value="claude-sonnet-4-20250514">claude-sonnet-4（推奨）</option>
+    <option value="claude-opus-4-20250514">claude-opus-4</option>
+  </select>
+  <div style="display:flex;align-items:center;gap:5px;">
+    <div style="width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 5px rgba(16,185,129,.4);"></div>
+    <span style="font-family:var(--mono);font-size:10px;color:#059669;">接続中</span>
+  </div>
+</div>
+
+<div id="body">
+  <div id="sb">
+    <div class="sb-hdr">実行履歴</div>
+    <div class="sb-body" id="hist-list"><div class="sb-emp" id="hist-empty">まだ履歴がありません</div></div>
+    <div class="sb-foot"><button class="clrbtn" onclick="clearHistory()">履歴をクリア</button></div>
+  </div>
+
+  <div id="main">
+    <div id="iz">
+      <div class="izlbl">マーケティングゴールを入力</div>
+      <div class="izrow">
+        <textarea id="tinput" placeholder="例：注文住宅ブランドのフルファネルマーケティング戦略を作る" rows="2"></textarea>
+        <button id="rbtn" onclick="go()">▶ 実行</button>
+      </div>
+      <div class="hints">
+        <span class="hint" onclick="sg(this)">注文住宅ブランドの市場分析と戦略立案</span>
+        <span class="hint" onclick="sg(this)">金融（新NISA）の認知拡大と口座開設獲得</span>
+        <span class="hint" onclick="sg(this)">BtoBクラウドSaaSの新規顧客獲得施策</span>
+        <span class="hint" onclick="sg(this)">不動産売却サービスのリード獲得最大化</span>
+        <span class="hint" onclick="sg(this)">ECサイトのLTV向上とCJO改善</span>
+      </div>
+    </div>
+    <div id="exec">
+      <div class="empty" id="estate">
+        <div class="ei">🎯</div>
+        <div class="et">PLANNER → GENERATOR → EVALUATOR<br>4層ハーネス / ドリフト検知 / Learning Memory<br><br>株式会社デジタルアイデンティティ（DI）専用</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="rp">
+    <div class="rptabs">
+      <button class="rptab on" onclick="rpt('memory',this)">MEMORY</button>
+      <button class="rptab" onclick="rpt('hooks',this)">HOOKS</button>
+      <button class="rptab" onclick="rpt('agents',this)">AGENTS</button>
+    </div>
+    <div class="rpanel" id="rp-memory">
+      <div class="mstats">
+        <div class="mstat"><div class="msv" id="ms-r">0</div><div class="msl">RUNS</div></div>
+        <div class="mstat"><div class="msv" id="ms-a">—</div><div class="msl">AVG SCORE</div></div>
+        <div class="mstat"><div class="msv" id="ms-p">0</div><div class="msl">PATTERNS</div></div>
+        <div class="mstat"><div class="msv" id="ms-i">0</div><div class="msl">INDUSTRIES</div></div>
+      </div>
+      <div class="rplbl">成功パターン</div>
+      <div id="patlist"><div class="rpemp">実行を重ねると<br>パターンが蓄積されます</div></div>
+    </div>
+    <div class="rpanel" id="rp-hooks" style="display:none;">
+      <div class="rplbl">フック実行ログ</div>
+      <div id="hlog-list"><div class="rpemp">実行待機中</div></div>
+    </div>
+    <div class="rpanel" id="rp-agents" style="display:none;">
+      <div class="rplbl">エージェントマニフェスト</div>
+      <div id="ag-manifest"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// DI Marketing AI v6 — Artifact版（完全クリーン）
+// ・APIキー不要（claude.aiがプロキシ）
+// ・fetch ヘッダー: Content-Type のみ
+// ・モデル: claude-sonnet-4-20250514
+// ・max_tokens: 1000
+// ════════════════════════════════════════════════
+
+// Artifact API呼び出し — 仕様通り最小ヘッダーのみ
+async function callAI(model, sys, user, onChunk) {
+  const body = {
+    model,
+    max_tokens: 1000,
+    system: sys,
+    messages: [{ role: "user", content: user }]
+  };
+  if (onChunk) body.stream = true;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || "API " + res.status);
+  }
+
+  if (!onChunk) {
+    const d = await res.json();
+    return d.content?.[0]?.text || "";
+  }
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", total = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split("\n"); buf = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const d = line.slice(6).trim();
+      if (d === "[DONE]") continue;
+      try {
+        const p = JSON.parse(d);
+        const c = p.delta?.text || "";
+        if (c) { total += c; onChunk(total); }
+      } catch {}
+    }
+  }
+  return total;
+}
+
+// ── DI KNOWLEDGE ─────────────────────────────────────────────
+const KB = [
+  "【DI会社概要】株式会社デジタルアイデンティティ（DI）。設立2009年・代表：鈴木謙司・398名・Orchestra Holdings（東証プライム6533）傘下。本社：東京都渋谷区恵比寿南1-15-1 A-PLACE恵比寿南5F。拠点：東京・札幌・大阪・福岡・名古屋。",
+  "【DIの戦略ポジション】理念「無双」〜社会に愛され、社員に愛され、未来を創る〜。スローガン「戦略から実行まで、成果を創出するパートナー」。ポジション：ミッドマーケット×フルファネル型デジタルマーケティング。",
+  "【DI認定・実績】Google Premier Partner（上位3%）・Yahoo!特別認定10期連続・Meta Business Partner。広告運用TOP10・SEO TOP5・顧客満足度83%・継続率9割強・3年成長率164%。Meta Agency First Awards Japan 2025「Best SMB Partner」受賞（国内3社のみ）。",
+  "【DIの5つの強み】①フルファネル一元管理（広告・SEO・制作・DX・SNS・解析を一社完結）②戦略から実行まで一貫③ミッドマーケット特化④Forté.AI自社開発・LLMO先行提供⑤東証プライムグループの信頼性。",
+  "【DIサービス15種類】全体戦略コンサル/デジタル広告（Google・Meta・Yahoo・TikTok）/SEO（流入3.5倍実績）/コンテンツMKT/LLMO（AI言及率最適化）/SNS・PR（VASASモデル）/Web・LP・動画制作（UIUXの48項目診断）/マーケDX（MA・GA4・BI・LINE-Liny）/Forté.AI/CRO（CV率407%改善）/CMO代行/インハウス支援/プライバシーコンサル/薬機法チェッカー/事業承継。",
+  "【DI数値実績】SEO流入3.5倍・CV率407%改善・住宅LP CVR2.3倍・BtoBクラウド CVR185%・LP300本・バナー1000回改善。みずほ銀行・三井住友銀行・野村証券・SBI証券・明治安田生命・第一生命・東京海上日動・ロイヤルパークホテルズ等。",
+  "【Forté.AI・LLMO】2025年12月自社開発AIプラットフォーム。LLMO：ChatGPT（月8億人）・Gemini・Claude等でのブランド言及率最適化。業界先行提供。",
+  "【業界別ナレッジ】不動産：CPC1万円超レッドオーシャン→SNS・ディスプレイ潜在層アプローチ。金融：Yahoo!特別認定の金融KW特有機能・コンプライアンス必須・LLMO新競争軸。VASASモデル（Viral→Influence→Sympathy→Action→Share）。広告の掟：①KPI常に意識②データで話せ③クリエイティブ軽視禁止④PDCAを止めるな。"
+];
+
+const AGENTS = {
+  depth:     { name:"市場深掘り",   icon:"🔬", cat:"research", desc:"業界・競合・市場構造を深く分析" },
+  grouin:    { name:"成長機会",     icon:"📈", cat:"research", desc:"未開拓領域・参入機会・ブルーオーシャン特定" },
+  strategy:  { name:"戦略立案",     icon:"🎯", cat:"strategy", desc:"ターゲット・ポジショニング・差別化設計" },
+  product:   { name:"商品戦略",     icon:"📦", cat:"strategy", desc:"商品・価格・チャネル設計" },
+  journey:   { name:"CJ設計",       icon:"🗺", cat:"strategy", desc:"カスタマージャーニー・タッチポイント設計" },
+  brainstorm:{ name:"アイデア発想", icon:"💡", cat:"creative", desc:"施策アイデア20案以上生成と整理" },
+  copy:      { name:"コピー生成",   icon:"✍", cat:"creative", desc:"広告コピー・メッセージ設計" },
+  activation:{ name:"活性化施策",   icon:"⚡", cat:"creative", desc:"キャンペーン・SNS・CRM施策設計" },
+  media:     { name:"メディアプラン",icon:"📺", cat:"media",   desc:"チャネル選定・媒体計画・予算配分" },
+  digital:   { name:"デジタル広告", icon:"💻", cat:"media",   desc:"Meta/Google/SEO/LLMO統合戦略" }
+};
+
+const PROMPTS = {
+  depth:     "あなたはDIの市場深掘りエージェントです。必須出力構造：## 市場規模と成長トレンド ## 主要競合分析（具体社名必須） ## 顧客セグメント構造 ## 市場の課題と機会。抽象論禁止・具体数値・固有名詞必須。",
+  grouin:    "あなたはDIの成長機会エージェントです。必須出力構造：## 未開拓セグメント ## 成長サブカテゴリ ## 技術・社会変化による新需要 ## DIワンストップが活かせる機会。「誰に・何を・なぜ今」の3点セットで提示。",
+  strategy:  "あなたはDIの戦略立案エージェントです。必須出力構造：## ターゲットペルソナ（属性・心理・インサイト詳細） ## ポジショニングと差別化 ## コアバリュープロポジション ## 施策ロードマップ（今すぐ→3ヶ月→1年） ## KPI（定量的目標値必須）。",
+  product:   "あなたはDIの商品戦略エージェントです。必須出力構造：## 商品ラインナップと優先順位 ## 価格戦略（根拠付き数値必須） ## 販売チャネル最適化 ## 商品改善の優先施策。",
+  journey:   "あなたはDIのCJ設計エージェントです。DI実績：CVR2.3倍・CV率407%改善。必須出力構造：## 5フェーズジャーニーマップ（認知→興味→検討→購買→継続） ## フェーズ別タッチポイントと施策 ## 離脱ポイントと対策 ## KPIツリー。",
+  brainstorm:"あなたはDIのアイデア発想エージェントです。必須出力構造：## 施策アイデア20案以上（カテゴリ別） ## インパクト×実行可能性マトリクス ## Quick Win 3施策 ## 中長期大型施策2案。",
+  copy:      "あなたはDIのコピー設計エージェントです。必須出力構造：## キャッチコピー5パターン以上（感情・理性・行動の3軸） ## サブコピー・ボディコピー ## 媒体別メッセージ（SNS・検索・LP・動画） ## コピー方向性の解説。",
+  activation:"あなたはDIの活性化施策エージェントです。VASASモデル活用。必須出力構造：## キャンペーン企画（テーマ・期間・KPI） ## SNS施策 ## コンテンツ計画（LLMO対応含む） ## CRM・リテンション施策。",
+  media:     "あなたはDIのメディアプランナーです。Google Premier Partner・Yahoo!特別認定10期連続保有。必須出力構造：## チャネル別役割・予算比率 ## ターゲット×メディア親和性 ## 月次フライトスケジュール ## KPI目標値（リーチ・CPM・ROAS・CPA）。",
+  digital:   "あなたはDIのデジタル広告・SEO・LLMOエージェントです。DI実績：流入3.5倍・LP300本・バナー1000回。必須出力構造：## プラットフォーム役割分担（Google/Meta/TikTok/Yahoo/SEO/LLMO） ## クリエイティブ方針・ABテスト設計 ## ターゲティング設定 ## CVR・CPA・ROAS目標値と計測設計 ## LLMO対策。"
+};
+
+const CL = {
+  depth:["市場規模と数値","競合プレイヤーの具体社名","顧客セグメント","ペインポイント特定"],
+  grouin:["未開拓セグメント","成長サブカテゴリ","誰に・何を・なぜ今"],
+  strategy:["ペルソナ詳細","差別化ポイント","定量KPI","3段階ロードマップ"],
+  product:["ラインナップ優先順位","価格根拠","チャネル最適化"],
+  journey:["5フェーズマップ","タッチポイントと施策","離脱対策","KPIツリー"],
+  brainstorm:["20案以上","優先順位マトリクス","QuickWin3施策","中長期2案"],
+  copy:["5パターン以上","媒体別バリエーション","方向性解説"],
+  activation:["キャンペーン企画","SNS施策","コンテンツ計画","CRM施策"],
+  media:["チャネル予算比率","メディア親和性","フライトスケジュール","ROAS目標"],
+  digital:["プラットフォーム分担","クリエイティブ方針","ターゲティング","目標値計測"]
+};
+
+const DRIFT = ["今後検討","別途対応","必要に応じて","後日対応","要検討","TBD"];
+
+// STATE — no apiKey, no modal, no CORS workaround needed
+let isRunning = false;
+let logs = [];
+let mem = { history: [], patterns: [] };
+try { mem = JSON.parse(localStorage.getItem("di_v6") || "{}") || { history: [], patterns: [] }; } catch {}
+if (!mem.history) mem.history = [];
+if (!mem.patterns) mem.patterns = [];
+
+function saveMem() { try { localStorage.setItem("di_v6", JSON.stringify(mem)); } catch {} }
+function mkEl(t, c) { const e = document.createElement(t); if (c) e.className = c; return e; }
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function scrollDown() { window.scrollTo(0, document.body.scrollHeight); }
+function sg(el) { document.getElementById("tinput").value = el.textContent; document.getElementById("tinput").focus(); }
+function ts() { return new Date().toTimeString().slice(0,8); }
+
+function renderMd(text) {
+  if (!text) return "";
+  return text
+    .replace(/^### (.+)$/gm,"<h3>$1</h3>").replace(/^## (.+)$/gm,"<h2>$1</h2>").replace(/^# (.+)$/gm,"<h1>$1</h1>")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>")
+    .replace(/`([^`]+)`/g,"<code>$1</code>").replace(/^---$/gm,"<hr>").replace(/^> (.+)$/gm,"<blockquote>$1</blockquote>")
+    .split("\n").map(l => {
+      if (!l.trim() || l.startsWith("<")) return l;
+      if (l.match(/^[-*] /)) return "<li>" + l.replace(/^[-*] /,"") + "</li>";
+      if (l.match(/^\d+\. /)) return "<li>" + l.replace(/^\d+\. /,"") + "</li>";
+      return "<p>" + l + "</p>";
+    }).join("\n").replace(/(<li>[\s\S]*?<\/li>\n?)+/g, m => "<ul>" + m + "</ul>");
+}
+
+function addLog(icon, text, type) {
+  logs.push({ ts: ts(), icon, text, type });
+  const el = document.getElementById("hlog-list");
+  if (!el) return;
+  el.innerHTML = logs.slice(-30).reverse().map(h => {
+    const cls = h.type === "pass" ? "hlok" : h.type === "warn" ? "hlwn" : h.type === "fail" ? "hler" : "hlin";
+    return `<div class="hlog"><span class="hlts">${h.ts}</span><span>${h.icon}</span><span class="${cls}">${esc(h.text)}</span></div>`;
+  }).join("");
+}
+
+function setArch(stage) {
+  const order = ["init","plan","gen","eval"];
+  const idx = order.indexOf(stage);
+  order.forEach((s, i) => {
+    const n = document.getElementById("an-" + s);
+    if (!n) return;
+    n.className = "an" + (stage === "done" || i < idx ? " done" : i === idx ? " act" : "");
+  });
+}
+
+function setPill(id, cls, text) {
+  const p = document.getElementById(id);
+  if (p) { p.className = "pill " + cls; p.textContent = text; }
+}
+
+function toggleX(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle("open");
+}
+
+function chk(output, item) {
+  const kws = item.replace(/[（）()・]/g," ").split(/\s+/).filter(w => w.length > 1);
+  return kws.some(kw => output.includes(kw));
+}
+
+function hookPost(aid, output) {
+  const driftFound = DRIFT.filter(p => output.includes(p));
+  const cl = CL[aid] || [];
+  const missing = cl.filter(item => !chk(output, item));
+  const ok = output.length >= 150;
+  addLog(ok ? "✓" : "✕", `${AGENTS[aid]?.name}: ${output.length}字 ドリフト${driftFound.length}件 CL${cl.length - missing.length}/${cl.length}`, ok ? "pass" : "fail");
+  return { ok, driftFound, missing };
+}
+
+function getMemCtx() {
+  if (!mem.patterns.length) return null;
+  return mem.patterns.slice(-3).map(p =>
+    `業界:${p.industry} スコア:${p.score} 構成:${(p.agents||[]).join("→")}\n学習:${(p.learnings||[]).slice(0,2).join("／")}`
+  ).join("\n");
+}
+
+// ── MAIN PIPELINE ─────────────────────────────────────────────
+async function go() {
+  const goal = document.getElementById("tinput").value.trim();
+  if (!goal || isRunning) return;
+
+  isRunning = true;
+  logs = [];
+  const model = document.getElementById("msel").value;
+  const rbtn = document.getElementById("rbtn");
+  rbtn.disabled = true;
+  rbtn.innerHTML = "<span class=\"spin\" style=\"border-top-color:#fff;\"></span> 実行中";
+
+  const execEl = document.getElementById("exec");
+  execEl.innerHTML = "";
+  const tid = Date.now().toString();
+
+  setArch("init");
+  addLog("◉", "SESSION_START", "info");
+  addLog("📋", `過去実行:${mem.history.length}件 / パターン:${mem.patterns.length}件`, "info");
+
+  const memCtx = getMemCtx();
+  if (memCtx) {
+    const bn = mkEl("div");
+    bn.style.cssText = "background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.2);border-radius:8px;padding:8px 12px;display:flex;gap:8px;margin-bottom:2px;";
+    bn.innerHTML = `<span style="font-size:14px;flex-shrink:0;">🧠</span><div><div style="font-family:var(--mono);font-size:9px;letter-spacing:.07em;text-transform:uppercase;opacity:.65;color:#7C3AED;margin-bottom:2px;">MEMORY — 過去パターン参照中</div><div style="font-family:var(--mono);font-size:10px;color:#7C3AED;line-height:1.55;">${esc(memCtx)}</div></div>`;
+    execEl.appendChild(bn);
+  }
+
+  const th = mkEl("div","task-hdr");
+  th.innerHTML = `<div class="tgoal">${esc(goal)}</div><div class="tpills"><div class="pill pp" id="tp-${tid}">⬡ 計画中...</div><div style="font-family:var(--mono);font-size:9px;color:var(--dim);">${new Date().toLocaleTimeString("ja-JP")}</div></div>`;
+  execEl.appendChild(th);
+  scrollDown();
+
+  try {
+    // ── PLANNER
+    setArch("plan");
+    const agentList = Object.entries(AGENTS).map(([id,a]) => `${id}: ${a.name}（${a.desc}）`).join("\n");
+    const kbSum = KB.slice(0,5).join("\n");
+
+    const planBlock = mkEl("div","plan-block");
+    planBlock.innerHTML = `<div class="ph"><div class="pl">⬡ Planner</div><div style="display:flex;align-items:center;gap:5px;margin-left:auto;"><span class="spin" style="border-top-color:var(--blue);"></span><span style="font-family:var(--mono);font-size:9px;color:var(--blue);">選択中...</span></div></div><div class="pb"><div class="prat" id="prat-${tid}">分析中...</div><div class="pipe" id="pipe-${tid}"></div></div>`;
+    execEl.appendChild(planBlock);
+    scrollDown();
+
+    const planTxt = await callAI(model,
+      "あなたはDIマーケティングAIのPlannerです。ゴールに最適なエージェント構成をJSONのみで返してください。説明文・バッククォート不要。",
+      `エージェント:\n${agentList}\n\nナレッジ:\n${kbSum}${memCtx ? "\n\n過去パターン:\n" + memCtx : ""}\n\nルール：3〜5個。論理的順序。不要エージェントは除外。\n\n出力：{"agents":["id1","id2","id3"],"rationale":"理由","focus":"注力","industry":"業界"}\n\nゴール：${goal}`,
+      null
+    );
+
+    let plan;
+    try {
+      plan = JSON.parse(planTxt.replace(/```json?\n?/g,"").replace(/```\n?/g,"").trim());
+      plan.agents = (plan.agents || []).filter(id => AGENTS[id]);
+      if (plan.agents.length < 2) plan.agents = ["depth","strategy","copy"];
+      if (plan.agents.length > 5) plan.agents = plan.agents.slice(0,5);
+    } catch { plan = { agents: ["depth","strategy","copy"], rationale:"デフォルト構成", focus: goal, industry:"一般" }; }
+
+    addLog("✓", `Planner確定: ${plan.agents.join("→")} (${plan.agents.length}agents)`, "pass");
+    document.getElementById("prat-" + tid).textContent = plan.rationale || "";
+    const pipeEl = document.getElementById("pipe-" + tid);
+    pipeEl.innerHTML = plan.agents.map((id, i) => {
+      const a = AGENTS[id] || { name: id, icon: "⬡" };
+      return `<div class="pn" id="pn-${tid}-${id}">${a.icon} ${a.name}</div>${i < plan.agents.length - 1 ? "<div class=\"parr\">→</div>" : ""}`;
+    }).join("") + `<div class="parr">→</div><div class="pn pnev" id="pnev-${tid}">◈ Evaluator</div>`;
+    planBlock.querySelector(".ph").innerHTML = `<div class="pl">⬡ Planner</div><div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--green);">✓ ${plan.agents.length}エージェント確定</div>`;
+
+    // ── GENERATOR
+    setArch("gen");
+    setPill("tp-" + tid, "pill pr", "▶ Generator 実行中");
+    let accCtx = `【ゴール】\n${goal}\n\n【注力】\n${plan.focus || goal}`;
+    const results = {};
+
+    for (let i = 0; i < plan.agents.length; i++) {
+      const aid = plan.agents[i];
+      const agent = AGENTS[aid] || { name: aid, icon: "⬡", cat: "research" };
+      addLog("⬡", `PRE_AGENT: ${agent.name}`, "info");
+
+      const pn = document.getElementById(`pn-${tid}-${aid}`);
+      if (pn) pn.className = "pn act";
+
+      const catCls = { research:"cr", strategy:"cs", creative:"cc", media:"cm" }[agent.cat] || "cr";
+      const card = mkEl("div","acard");
+      card.innerHTML = `<div class="ahdr"><span class="anum">${String(i+1).padStart(2,"0")}</span><span style="font-size:14px;">${agent.icon}</span><span class="aname">${agent.name}</span><span class="acat ${catCls}">${agent.cat}</span><div class="ast sr" id="ast-${tid}-${aid}"><span class="spin"></span> 実行中</div></div><div class="abody md" id="ab-${tid}-${aid}"></div>`;
+      execEl.appendChild(card);
+
+      const cl = CL[aid] || [];
+      if (cl.length) {
+        const clp = mkEl("div","xpanel");
+        clp.id = "cl-" + tid + "-" + aid;
+        clp.innerHTML = `<div class="xbar" onclick="toggleX('cl-${tid}-${aid}')"><span class="xlbl">終了条件チェックリスト</span><span class="clprog" id="clp-${tid}-${aid}">0/${cl.length}</span></div><div class="xcont">${cl.map((item,ci) => `<div class="clrow"><input class="clcb" type="checkbox" id="clcb-${tid}-${aid}-${ci}"><span class="cltxt" id="clct-${tid}-${aid}-${ci}">${esc(item)}</span></div>`).join("")}</div>`;
+        card.appendChild(clp);
+      }
+
+      const hp = mkEl("div","xpanel");
+      hp.id = "hp-" + tid + "-" + aid;
+      hp.innerHTML = `<div class="xbar" onclick="toggleX('hp-${tid}-${aid}')"><span class="xlbl">Lifecycle Hooks</span><span class="hbg hbr" id="hb-${tid}-${aid}">実行中</span></div><div class="xcont" id="hc-${tid}-${aid}"></div>`;
+      card.appendChild(hp);
+      scrollDown();
+
+      const sysPr = PROMPTS[aid] || `あなたはDIのマーケティングエージェント（${agent.name}）です。`;
+      const userMsg = `【蓄積コンテキスト】\n${accCtx}\n\n【DIナレッジ】\n${KB.join("\n")}\n\n---\nゴール「${goal}」に対して${agent.name}として詳細な分析・提案を行ってください。必須出力構造を守り、具体的な数値・固有名詞を含めてください。`;
+
+      let agOut = "";
+      const bodyEl = document.getElementById("ab-" + tid + "-" + aid);
+      await callAI(model, sysPr, userMsg, chunk => { agOut = chunk; bodyEl.innerHTML = renderMd(agOut); scrollDown(); });
+
+      const postRes = hookPost(aid, agOut);
+      results[aid] = { output: agOut, hook: postRes };
+
+      const hb = document.getElementById("hb-" + tid + "-" + aid);
+      const hc = document.getElementById("hc-" + tid + "-" + aid);
+      if (hb) {
+        if (postRes.ok && !postRes.driftFound.length) { hb.className = "hbg hbp"; hb.textContent = "✓ PASS"; }
+        else if (!postRes.ok) { hb.className = "hbg hbf"; hb.textContent = "✕ FAIL"; }
+        else { hb.className = "hbg hbw"; hb.textContent = "⚠ WARN"; }
+      }
+      if (hc) {
+        hc.innerHTML = [
+          { icon: agOut.length >= 150 ? "✓" : "✕", text: `出力長: ${agOut.length}字` },
+          postRes.driftFound.length ? { icon: "⚠", text: `ドリフト: ${postRes.driftFound.join("/")}` } : { icon: "✓", text: "ドリフトパターン未検出" },
+          cl.length ? (postRes.missing.length ? { icon: "⚠", text: `未達成: ${postRes.missing.join("、")}` } : { icon: "✓", text: "終了条件チェック完了" }) : null
+        ].filter(Boolean).map(h => `<div class="xi"><span>${h.icon}</span><span>${esc(h.text)}</span></div>`).join("");
+      }
+
+      if (cl.length) {
+        let passed = 0;
+        cl.forEach((item, ci) => {
+          const ok = chk(agOut, item);
+          const cb = document.getElementById(`clcb-${tid}-${aid}-${ci}`);
+          const ct = document.getElementById(`clct-${tid}-${aid}-${ci}`);
+          if (cb) cb.checked = ok;
+          if (ct && ok) ct.className = "cltxt done";
+          if (ok) passed++;
+        });
+        const progEl = document.getElementById(`clp-${tid}-${aid}`);
+        if (progEl) {
+          progEl.textContent = `${passed}/${cl.length}`;
+          progEl.style.cssText = `background:${passed===cl.length?"var(--glt)":passed<cl.length*.5?"var(--rlt)":"var(--alt)"};color:${passed===cl.length?"var(--green)":passed<cl.length*.5?"var(--red)":"var(--amber)"};border:1px solid;border-color:${passed===cl.length?"rgba(5,150,105,.3)":passed<cl.length*.5?"rgba(220,38,38,.25)":"rgba(217,119,6,.3)"};font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:100px;`;
+          if (passed < cl.length) { const clEl = document.getElementById(`cl-${tid}-${aid}`); if (clEl) clEl.classList.add("open"); }
+        }
+      }
+
+      if (postRes.driftFound.length) {
+        const dw = mkEl("div","drift");
+        dw.innerHTML = `<span>⚠</span><div>ドリフト検知：${postRes.driftFound.map(p => `<span class="dflag">${esc(p)}</span>`).join("")}</div>`;
+        card.appendChild(dw);
+      }
+
+      const st = document.getElementById("ast-" + tid + "-" + aid);
+      if (st) { st.innerHTML = postRes.ok ? "<span>✓ 完了</span>" : "<span>⚠ 品質警告</span>"; st.className = postRes.ok ? "ast sd" : "ast sw"; }
+      if (pn) pn.className = postRes.ok ? "pn done" : "pn warn";
+
+      if (i < plan.agents.length - 1) {
+        const next = AGENTS[plan.agents[i+1]] || { name: plan.agents[i+1] };
+        const bt = mkEl("div","baton");
+        bt.textContent = `↓ → ${next.name}へ引き渡し（${agOut.length}字 → 1,000字圧縮）`;
+        card.appendChild(bt);
+      }
+
+      accCtx += `\n\n【${agent.name}の結果】\n${agOut.substring(0, 900)}${agOut.length > 900 ? "…" : ""}`;
+    }
+
+    // ── EVALUATOR (1回・スプリントなし)
+    setArch("eval");
+    addLog("◈", "PRE_EVALUATOR — 統合品質チェック", "info");
+    const lowQ = Object.entries(results).filter(([,r]) => r.hook && !r.hook.ok).map(([id]) => AGENTS[id]?.name || id);
+    const totalDrift = Object.values(results).reduce((a, r) => a + (r.hook?.driftFound?.length || 0), 0);
+    if (lowQ.length) addLog("⚠", `低品質エージェント: ${lowQ.join(", ")}`, "warn");
+    else addLog("✓", "すべての出力が品質基準を満たしました", "pass");
+    setPill("tp-" + tid, "pill pr", "◈ Evaluator 評価中");
+
+    const pnev = document.getElementById("pnev-" + tid);
+    if (pnev) { pnev.style.background = "var(--golt)"; pnev.style.borderColor = "rgba(180,83,9,.3)"; pnev.style.color = "var(--gold)"; }
+
+    const evalCard = mkEl("div","eval-card");
+    evalCard.innerHTML = `<div class="evhdr"><span class="evlbl">◈ Evaluator — 最終評価（1回完結・スプリントなし）</span><span class="spin" id="evsp-${tid}" style="border-top-color:var(--gold);"></span></div><div class="evbody md" id="evb-${tid}"></div>`;
+    execEl.appendChild(evalCard);
+    scrollDown();
+
+    const allSum = plan.agents.map(id => `【${AGENTS[id]?.name}】品質:${results[id]?.hook?.ok ? "PASS" : "WARN"}\n${(results[id]?.output || "").substring(0, 500)}`).join("\n\n---\n\n");
+
+    let evalOut = "";
+    const evBodyEl = document.getElementById("evb-" + tid);
+    await callAI(model,
+      "あなたはDIマーケティングAIのEvaluatorです。全エージェント出力を統合評価し最終レポートを作成してください。1回完結。自己完了宣言禁止。",
+      `【ゴール】${goal}\n\n【全エージェント出力】\n${allSum}\n\n【品質結果】ドリフト:${totalDrift}件 / 低品質:${lowQ.join(",") || "なし"}\n\n以下を実行：\n## 統合評価スコア\n- 実行可能性: X/10\n- 戦略整合性: X/10\n- DI強み活用: X/10\n\n## 最終マーケティング戦略サマリー\n（優先施策TOP3明記）\n\n## 学習ポイント（Memory保存用）\n次回に活かせる知見3点\n\n## ネクストアクション\n今すぐ実行できる具体的アクション3つ`,
+      chunk => { evalOut = chunk; evBodyEl.innerHTML = renderMd(evalOut); scrollDown(); }
+    );
+
+    const spel = document.getElementById("evsp-" + tid);
+    if (spel) spel.remove();
+
+    const sA = parseInt((evalOut.match(/実行可能性[^\d]*(\d+)/) || [])[1]) || 7;
+    const sS = parseInt((evalOut.match(/整合性[^\d]*(\d+)/) || [])[1]) || 7;
+    const sD = parseInt((evalOut.match(/DI[^\d]*(\d+)/) || [])[1]) || 7;
+    const avg = Math.round(((sA + sS + sD) / 3) * 10) / 10;
+
+    const learnings = [];
+    const ls = evalOut.match(/学習ポイント[\s\S]*?(?=##|$)/i)?.[0] || "";
+    ls.split("\n").filter(l => l.match(/^[-・*]/)).slice(0,3).forEach(l => learnings.push(l.replace(/^[-・*]\s*/,"")));
+    if (!learnings.length) learnings.push("具体的施策から逆算した戦略設計が有効");
+
+    evalCard.querySelector(".evhdr").innerHTML = `<span class="evlbl">◈ Evaluator — 評価完了</span><span class="evsc">${avg}/10</span>`;
+
+    const lb = mkEl("div","lblock");
+    lb.innerHTML = `<div class="lblbl">Learning（Memory保存）</div>${learnings.map(l => `<div class="litem">・${esc(l)}</div>`).join("")}`;
+    evBodyEl.after(lb);
+    const mb = mkEl("div","mbadge"); mb.textContent = "✓ Memoryに保存済み"; lb.after(mb);
+    const xb = mkEl("button","expbtn"); xb.textContent = "↓ Markdown出力"; xb.onclick = () => exportMd(goal, plan, results, evalOut); mb.after(xb);
+
+    addLog("💾", `Memory保存: スコア${avg}/10`, "pass");
+    const hist = { id: tid, goal, agents: plan.agents, industry: plan.industry || "未分類", score: avg, learnings, timestamp: Date.now(), outputs: Object.fromEntries(Object.entries(results).map(([id,r]) => [id, r.output])), evalOutput: evalOut };
+    mem.history.unshift(hist);
+    if (mem.history.length > 50) mem.history = mem.history.slice(0, 50);
+    mem.patterns.push({ industry: plan.industry || "未分類", agents: plan.agents, score: avg, learnings });
+    if (mem.patterns.length > 100) mem.patterns = mem.patterns.slice(-100);
+    saveMem();
+
+    setArch("done");
+    setPill("tp-" + tid, "pill pd", `✓ 完了 ${avg}/10`);
+    if (pnev) { pnev.style.background = "var(--glt)"; pnev.style.borderColor = "rgba(5,150,105,.35)"; pnev.style.color = "var(--green)"; }
+    addLog("◉", `SESSION_END — スコア${avg}/10`, "pass");
+    renderHistory(); renderMemory();
+
+  } catch (err) {
+    setArch(""); setPill("tp-" + tid, "pill pe", "✕ エラー");
+    addLog("✕", "ERROR: " + err.message, "fail");
+    const errEl = mkEl("div");
+    errEl.style.cssText = "padding:12px 16px;background:var(--rlt);border:1px solid rgba(220,38,38,.22);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--red);margin-top:8px;line-height:1.6;";
+    errEl.textContent = "エラー: " + err.message;
+    document.getElementById("exec").appendChild(errEl);
+    console.error(err);
+  } finally {
+    isRunning = false;
+    rbtn.disabled = false; rbtn.textContent = "▶ 実行";
+    scrollDown();
+  }
+}
+
+function renderHistory() {
+  const list = document.getElementById("hist-list");
+  const emp = document.getElementById("hist-empty");
+  if (!mem.history.length) { if (emp) emp.style.display = ""; return; }
+  if (emp) emp.style.display = "none";
+  list.innerHTML = "";
+  mem.history.forEach(h => {
+    const item = mkEl("div","hi");
+    const sc = h.score >= 8 ? "sh" : h.score >= 6 ? "sm" : "sl";
+    item.innerHTML = `<div class="hi-goal">${esc(h.goal)}</div><div class="hi-meta"><span class="hsc ${sc}">${h.score}</span><span>${(h.agents||[]).length}agents</span><span>${new Date(h.timestamp).toLocaleDateString("ja-JP",{month:"numeric",day:"numeric"})}</span></div>`;
+    item.onclick = () => loadHistory(h);
+    list.appendChild(item);
+  });
+}
+
+function loadHistory(h) {
+  const ea = document.getElementById("exec"); ea.innerHTML = "";
+  const th = mkEl("div","task-hdr");
+  th.innerHTML = `<div class="tgoal">${esc(h.goal)}</div><div class="tpills"><div class="pill pd">✓ ${h.score}/10</div><div style="font-family:var(--mono);font-size:9px;color:var(--dim);">${new Date(h.timestamp).toLocaleString("ja-JP")}</div></div>`;
+  ea.appendChild(th);
+  if (h.outputs) (h.agents || []).forEach((id, i) => {
+    const a = AGENTS[id] || { name: id, icon: "⬡", cat: "research" };
+    const catCls = { research:"cr", strategy:"cs", creative:"cc", media:"cm" }[a.cat] || "cr";
+    const card = mkEl("div","acard");
+    card.innerHTML = `<div class="ahdr"><span class="anum">${String(i+1).padStart(2,"0")}</span><span style="font-size:14px;">${a.icon}</span><span class="aname">${a.name}</span><span class="acat ${catCls}">${a.cat}</span><div class="ast sd">✓ 完了</div></div><div class="abody md">${renderMd(h.outputs[id] || "")}</div>`;
+    ea.appendChild(card);
+  });
+  if (h.evalOutput) {
+    const ec = mkEl("div","eval-card");
+    ec.innerHTML = `<div class="evhdr"><span class="evlbl">◈ Evaluator</span><span class="evsc">${h.score}/10</span></div><div class="evbody md">${renderMd(h.evalOutput)}</div>`;
+    ea.appendChild(ec);
+  }
+}
+
+function clearHistory() {
+  if (!confirm("履歴とMemoryを全削除しますか？")) return;
+  mem = { history: [], patterns: [] }; saveMem(); logs = [];
+  renderHistory(); renderMemory();
+  document.getElementById("hlog-list").innerHTML = "<div class=\"rpemp\">実行待機中</div>";
+  document.getElementById("exec").innerHTML = "<div class=\"empty\"><div class=\"ei\">🎯</div><div class=\"et\">PLANNER → GENERATOR → EVALUATOR</div></div>";
+}
+
+function rpt(tab, btn) {
+  document.querySelectorAll(".rptab").forEach(t => t.classList.remove("on"));
+  btn.classList.add("on");
+  ["memory","hooks","agents"].forEach(t => { const el = document.getElementById("rp-" + t); if (el) el.style.display = t === tab ? "" : "none"; });
+}
+
+function renderMemory() {
+  const runs = mem.history.length;
+  const scores = mem.history.map(h => h.score).filter(Boolean);
+  const avg = scores.length ? (scores.reduce((a,b) => a+b, 0) / scores.length).toFixed(1) : "—";
+  const inds = [...new Set(mem.patterns.map(p => p.industry).filter(Boolean))].length;
+  document.getElementById("ms-r").textContent = runs;
+  document.getElementById("ms-a").textContent = avg;
+  document.getElementById("ms-p").textContent = mem.patterns.length;
+  document.getElementById("ms-i").textContent = inds;
+  const pl = document.getElementById("patlist");
+  if (!mem.patterns.length) { pl.innerHTML = "<div class=\"rpemp\">実行を重ねると<br>パターンが蓄積されます</div>"; return; }
+  pl.innerHTML = [...mem.patterns].reverse().slice(0,7).map(p => {
+    const sc = p.score >= 8 ? "pchi" : "pcmi";
+    return `<div class="patcard"><div class="pchdr"><span class="pcind">${esc(p.industry||"未分類")}</span><span class="pcsc ${sc}">${p.score}/10</span></div><div class="pcags">${(p.agents||[]).map(id => `<span class="pcag">${AGENTS[id]?.name||id}</span>`).join("")}</div><div class="pclearn">${(p.learnings||[]).slice(0,2).map(l => `・${esc(l)}`).join("<br>")}</div></div>`;
+  }).join("");
+}
+
+function renderManifest() {
+  document.getElementById("ag-manifest").innerHTML = Object.entries(AGENTS).map(([id,a]) => {
+    const catCls = { research:"cr", strategy:"cs", creative:"cc", media:"cm" }[a.cat] || "cr";
+    return `<div class="amitem"><span style="font-size:13px;">${a.icon}</span><span class="amname">${a.name}</span><span class="amcat ${catCls}">${a.cat}</span></div>`;
+  }).join("");
+}
+
+function exportMd(goal, plan, results, evalOut) {
+  const date = new Date().toLocaleDateString("ja-JP");
+  let md = `# DI Marketing AI — 戦略レポート\n**日付:** ${date}\n**ゴール:** ${goal}\n**エージェント:** ${plan.agents.join(" → ")}\n\n---\n\n`;
+  plan.agents.forEach((id, i) => { const a = AGENTS[id] || { name: id }; md += `## ${i+1}. ${a.name}\n\n${results[id]?.output || ""}\n\n---\n\n`; });
+  md += `## Evaluator — 統合評価\n\n${evalOut}\n`;
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = `di-marketing-${Date.now()}.md`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// BOOT
+renderManifest(); renderHistory(); renderMemory();
+document.getElementById("tinput").addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") go(); });
+</script>
+</body>
+</html>

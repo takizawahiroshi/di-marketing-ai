@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/di-company-docs/company/01_business/**)",
+      "Read(//tmp/di-company-docs/company/03_rules/**)",
+      "Bash(PYTHONPATH=. python *)",
+      "Bash(ls -la /c/Users/hiroshi_takizawa/di-marketing-ai/agents/**/*.md)"
+    ]
+  }
+}

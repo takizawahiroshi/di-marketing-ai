@@ -28,15 +28,15 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_ALLOWED_ORIGINS = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5500,null",
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5500",
-        "null",  # file:// からのアクセス
-    ],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.digitalidentity\.co\.jp$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
