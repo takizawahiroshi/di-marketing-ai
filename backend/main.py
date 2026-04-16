@@ -54,6 +54,44 @@ async def health():
     }
 
 
+# ── API キー設定 ──────────────────────────────────────────────
+ENV_PATH = Path(__file__).parent / ".env"
+
+
+def _mask_key(key: str) -> str:
+    if not key or len(key) < 12:
+        return ""
+    return f"{key[:7]}…{key[-4:]}"
+
+
+@app.get("/api/config")
+async def get_config():
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    return {
+        "api_key_configured": key.startswith("sk-"),
+        "api_key_masked": _mask_key(key) if key.startswith("sk-") else "",
+    }
+
+
+@app.post("/api/config")
+async def set_config(request: Request):
+    body = await request.json()
+    api_key = (body.get("api_key") or "").strip()
+    if not api_key.startswith("sk-"):
+        raise HTTPException(status_code=400, detail="APIキーは 'sk-' で始まる必要があります")
+
+    lines: list[str] = []
+    if ENV_PATH.exists():
+        for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
+            if not line.strip().startswith("ANTHROPIC_API_KEY=") and line.strip():
+                lines.append(line)
+    lines.append(f"ANTHROPIC_API_KEY={api_key}")
+    ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    os.environ["ANTHROPIC_API_KEY"] = api_key
+    return {"ok": True, "api_key_masked": _mask_key(api_key)}
+
+
 # ── エージェント一覧 ──────────────────────────────────────────
 @app.get("/api/agents")
 async def get_agents():
@@ -106,7 +144,7 @@ async def agent_chat(agent_id: str, request: Request):
     if not messages:
         raise HTTPException(status_code=400, detail="messages は必須です")
 
-    sys_prompt = build_agent_sys_prompt(agent_id, context)
+    sys_prompt = build_agent_sys_prompt(agent_id, context, di_mode=False)
     client = _anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
     response = await client.messages.create(
         model="claude-sonnet-4-6",

@@ -26,6 +26,7 @@
     <span id="api-txt" style="color:rgba(255,255,255,.80);font-size:10px;font-family:var(--mono);letter-spacing:.04em;">connecting...</span>
   </div>
   <button class="hdr-btn" onclick="openModal('ctx-modal')">＋ データ登録</button>
+  <button class="hdr-btn" onclick="openSettings()" title="API設定" style="margin-left:6px;">⚙ 設定</button>
   <button id="menu-btn" onclick="toggleMenu()" style="display:none;padding:4px 10px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:14px;cursor:pointer;">☰</button>
 </div>
 
@@ -57,8 +58,55 @@
     <div id="view-agents" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
       <div id="view-agents-inner" style="flex:1;overflow-y:auto;padding:24px 28px;">
         <div class="agents-hero">
-          <h1 style="font-family:var(--serif);font-weight:400;font-style:italic;font-size:22px;">エージェントを選ぶ</h1>
-          <p>話しかけたいAIを選んでください。コンテキストデータが自動で引き継がれます。</p>
+          <p class="landing-label">// AGENTS</p>
+          <h1 class="landing-title">エージェントを選ぶ</h1>
+          <p class="landing-desc">各分野のプロフェッショナルAIと直接対話できます。一般的なマーケティングのベストプラクティスに基づいた回答を行います。</p>
+          <div class="cat-nav-grid">
+            <div class="cat-nav-card" onclick="scrollToCat('research')" style="--cat-color:#0A6E6E;--cat-bg:linear-gradient(135deg,#E0F2F1,#B2DFDB);">
+              <div class="cnc-visual">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="18" cy="18" r="10" stroke="#0A6E6E" stroke-width="2.5" fill="#fff"/><line x1="25" y1="25" x2="34" y2="34" stroke="#0A6E6E" stroke-width="2.5" stroke-linecap="round"/><circle cx="18" cy="18" r="4" fill="#E0F2F1"/></svg>
+              </div>
+              <div class="cnc-body">
+                <div class="cnc-label">RESEARCH</div>
+                <div class="cnc-title">調査・インタビュー</div>
+                <div class="cnc-desc">ターゲットの本音を深掘り。デプスインタビューやグループ座談会をAIで再現します。</div>
+                <div class="cnc-agents">2 agents</div>
+              </div>
+            </div>
+            <div class="cat-nav-card" onclick="scrollToCat('strategy')" style="--cat-color:#C8321A;--cat-bg:linear-gradient(135deg,#FDF0ED,#F8D5C8);">
+              <div class="cnc-visual">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="4" y="8" width="32" height="24" rx="3" stroke="#C8321A" stroke-width="2.5" fill="#fff"/><line x1="10" y1="26" x2="10" y2="18" stroke="#C8321A" stroke-width="3" stroke-linecap="round"/><line x1="17" y1="26" x2="17" y2="14" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/><line x1="24" y1="26" x2="24" y2="20" stroke="#C8321A" stroke-width="3" stroke-linecap="round"/><line x1="31" y1="26" x2="31" y2="12" stroke="#E8B84B" stroke-width="3" stroke-linecap="round"/></svg>
+              </div>
+              <div class="cnc-body">
+                <div class="cnc-label">STRATEGY</div>
+                <div class="cnc-title">戦略・企画</div>
+                <div class="cnc-desc">課題分析から商品コンセプト設計、カスタマージャーニーまで戦略の骨格を構築。</div>
+                <div class="cnc-agents">3 agents</div>
+              </div>
+            </div>
+            <div class="cat-nav-card" onclick="scrollToCat('creative')" style="--cat-color:#B45309;--cat-bg:linear-gradient(135deg,#FFFBEB,#FDE68A);">
+              <div class="cnc-visual">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 6C14 6 10 10 10 16c0 4 2 6 4 8 1 1 2 3 2 4h8c0-1 1-3 2-4 2-2 4-4 4-8 0-6-4-10-10-10z" stroke="#B45309" stroke-width="2.5" fill="#fff"/><line x1="16" y1="32" x2="24" y2="32" stroke="#B45309" stroke-width="2.5" stroke-linecap="round"/><line x1="17" y1="36" x2="23" y2="36" stroke="#E8B84B" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <div class="cnc-body">
+                <div class="cnc-label">CREATIVE</div>
+                <div class="cnc-title">アイデア・コピー</div>
+                <div class="cnc-desc">ブレスト、施策プランニング、キャッチコピー、コンテンツ企画を一気に生成。</div>
+                <div class="cnc-agents">4 agents</div>
+              </div>
+            </div>
+            <div class="cat-nav-card" onclick="scrollToCat('media')" style="--cat-color:#4338CA;--cat-bg:linear-gradient(135deg,#EEF2FF,#C7D2FE);">
+              <div class="cnc-visual">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="4" y="6" width="32" height="22" rx="3" stroke="#4338CA" stroke-width="2.5" fill="#fff"/><line x1="12" y1="32" x2="28" y2="32" stroke="#4338CA" stroke-width="2.5" stroke-linecap="round"/><line x1="20" y1="28" x2="20" y2="32" stroke="#4338CA" stroke-width="2"/><circle cx="14" cy="16" r="3" fill="#EEF2FF" stroke="#4338CA" stroke-width="1.5"/><rect x="22" y="12" width="8" height="3" rx="1" fill="#C7D2FE"/><rect x="22" y="18" width="6" height="3" rx="1" fill="#C7D2FE"/></svg>
+              </div>
+              <div class="cnc-body">
+                <div class="cnc-label">MEDIA</div>
+                <div class="cnc-title">広告・デジタル</div>
+                <div class="cnc-desc">メディアミックス設計からSNS・デジタル広告の具体施策まで提案。</div>
+                <div class="cnc-agents">2 agents</div>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="cards-container"></div>
       </div>
@@ -88,14 +136,48 @@
       <!-- 空白時: ランディング -->
       <div id="orch-landing">
         <div class="orch-landing-inner">
-          <p class="orch-landing-title">// HARNESS</p>
-          <p class="orch-landing-sub">マーケティング課題を入力してください。AIが自動でエージェントを選び実行します</p>
+          <div class="landing-hero">
+            <p class="landing-label">// HARNESS</p>
+            <h1 class="landing-title">マーケティング課題を入力</h1>
+            <p class="landing-desc">AIが自動で最適なエージェントを選び、リサーチから戦略・企画・コピーまで一気通貫で実行します。DI独自のナレッジとフレームワークに基づいた提案を行います。</p>
+          </div>
           <div class="orch-landing-input-wrap">
             <div class="orch-landing-row">
               <textarea id="task-input" rows="2" placeholder="例：30代女性向け新商品のコンセプトとキャッチコピーをリサーチから一気に作りたい"></textarea>
-              <button id="run-btn" onclick="runOrchestrator()">▶ 実行</button>
+              <button id="run-btn" onclick="runOrchestrator()">送信</button>
             </div>
             <div id="hint-chips" class="iz-hints" style="margin-top:10px;"></div>
+          </div>
+          <div class="flow-section">
+            <div class="flow-label">How it works</div>
+            <div class="flow-cards">
+              <div class="flow-card">
+                <div class="flow-visual" style="background:linear-gradient(135deg,#E8F1FE 0%,#C5D7FB 100%);">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="8" y="10" width="32" height="28" rx="4" stroke="#0017C1" stroke-width="2.5" fill="#fff"/><line x1="14" y1="20" x2="34" y2="20" stroke="#3460FB" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="26" x2="28" y2="26" stroke="#7096F8" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="32" x2="22" y2="32" stroke="#C5D7FB" stroke-width="2" stroke-linecap="round"/><path d="M36 6L38 10H34L36 6Z" fill="#E8B84B"/></svg>
+                </div>
+                <div class="flow-step">STEP 1</div>
+                <div class="flow-title">課題を入力</div>
+                <div class="flow-desc">マーケティングの課題やゴールを自然文で入力。データがあれば添付も可能。</div>
+              </div>
+              <div class="flow-arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" stroke="#3460FB" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="flow-card">
+                <div class="flow-visual" style="background:linear-gradient(135deg,#FDF0ED 0%,#F8D5C8 100%);">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><circle cx="16" cy="20" r="7" stroke="#C8321A" stroke-width="2.5" fill="#fff"/><circle cx="32" cy="20" r="7" stroke="#C8321A" stroke-width="2.5" fill="#fff"/><circle cx="24" cy="34" r="7" stroke="#C8321A" stroke-width="2.5" fill="#fff"/><line x1="20" y1="25" x2="22" y2="29" stroke="#E8B84B" stroke-width="1.5"/><line x1="28" y1="25" x2="26" y2="29" stroke="#E8B84B" stroke-width="1.5"/><line x1="23" y1="20" x2="25" y2="20" stroke="#E8B84B" stroke-width="1.5"/></svg>
+                </div>
+                <div class="flow-step">STEP 2</div>
+                <div class="flow-title">自動エージェント選定</div>
+                <div class="flow-desc">AIが課題を分析し、11種類のエージェントから最適な組み合わせを自動選定。</div>
+              </div>
+              <div class="flow-arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" stroke="#3460FB" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="flow-card">
+                <div class="flow-visual" style="background:linear-gradient(135deg,#E0F2F1 0%,#B2DFDB 100%);">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="6" y="12" width="14" height="18" rx="2" stroke="#0A6E6E" stroke-width="2" fill="#fff"/><rect x="28" y="12" width="14" height="18" rx="2" stroke="#0A6E6E" stroke-width="2" fill="#fff"/><rect x="17" y="18" width="14" height="18" rx="2" stroke="#0A6E6E" stroke-width="2" fill="#fff"/><path d="M20 38l4 4 4-4" stroke="#E8B84B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div class="flow-step">STEP 3</div>
+                <div class="flow-title">DI視点のアウトプット</div>
+                <div class="flow-desc">DIの事例・フレームワークに基づいた具体的な戦略・施策を一括生成。</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -107,8 +189,8 @@
       <!-- 実行後: 下部固定入力 -->
       <div id="input-zone" style="display:none;">
         <div class="iz-row">
-          <textarea id="task-input-bottom" rows="1" placeholder="続けて課題を入力…" style="flex:1;background:rgba(255,255,255,.95);border:1.5px solid rgba(255,255,255,.6);color:#111;font-size:13px;font-family:var(--sans);padding:9px 14px;resize:none;outline:none;min-height:38px;max-height:80px;line-height:1.5;border-radius:6px;"></textarea>
-          <button id="run-btn-bottom" onclick="runOrchestratorBottom()" style="padding:9px 18px;background:var(--blue2);color:#FFFFFF;border:none;font-size:13px;font-family:var(--sans);font-weight:700;cursor:pointer;border-radius:4px;white-space:nowrap;flex-shrink:0;">▶ 実行</button>
+          <textarea id="task-input-bottom" rows="1" placeholder="続けて課題を入力…" style="flex:1;background:rgba(255,255,255,.95);border:1.5px solid rgba(255,255,255,.6);color:#111;font-size:14px;font-family:var(--sans);padding:11px 14px;resize:none;outline:none;min-height:48px;max-height:120px;line-height:1.65;border-radius:6px;"></textarea>
+          <button id="run-btn-bottom" onclick="runOrchestratorBottom()" style="padding:11px 24px;background:var(--blue);color:#FFFFFF;border:none;font-size:14px;font-family:var(--sans);font-weight:700;cursor:pointer;border-radius:6px;white-space:nowrap;flex-shrink:0;min-width:90px;box-shadow:var(--shadow-md);">送信</button>
         </div>
       </div>
     </div>
@@ -120,6 +202,16 @@
   <div class="modal">
     <div class="modal-head"><span class="modal-title">CONTEXT DATA</span><button class="modal-close" onclick="closeModal('ctx-modal')">&times;</button></div>
     <div class="modal-body">
+      <div id="drop-zone" class="drop-zone">
+        <div class="drop-zone-inner">
+          <div class="drop-zone-icon">+</div>
+          <div class="drop-zone-text">ファイルをドラッグ＆ドロップ</div>
+          <div class="drop-zone-sub">PDF / TXT / CSV / JSON / Markdown 対応</div>
+          <input type="file" id="file-input" multiple accept=".pdf,.txt,.csv,.json,.md,.tsv" style="display:none;">
+          <button class="drop-zone-btn" onclick="document.getElementById('file-input').click()">ファイルを選択</button>
+        </div>
+        <div id="file-list" class="file-list"></div>
+      </div>
       <div class="m-block"><div class="m-label">survey // アンケート結果・調査まとめ</div><textarea class="m-ta" id="ctx-survey-in" placeholder="集計結果、主要な発見事項..."></textarea></div>
       <div class="m-block"><div class="m-label">persona // ターゲット・ペルソナ</div><textarea class="m-ta" id="ctx-persona-in" placeholder="田中美咲（32歳・会社員）..."></textarea></div>
       <div class="m-block"><div class="m-label">brief // 案件背景・目的</div><textarea class="m-ta" id="ctx-brief-in" placeholder="クライアント：○○株式会社..."></textarea></div>
@@ -128,6 +220,127 @@
   </div>
 </div>
 
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="settings-modal">
+  <div class="modal">
+    <div class="modal-head"><span class="modal-title">API SETTINGS</span><button class="modal-close" onclick="closeModal('settings-modal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="m-block">
+        <div class="m-label">Anthropic API Key</div>
+        <input type="password" id="api-key-in" class="m-ta" style="height:40px;font-family:var(--mono);font-size:13px;" placeholder="sk-ant-..." autocomplete="off">
+        <div id="api-key-status" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--muted);">—</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-s" onclick="closeModal('settings-modal')">cancel</button>
+      <button class="btn-p" onclick="saveApiKey()">save</button>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
+<script>
+async function openSettings() {
+  openModal('settings-modal');
+  try {
+    const r = await fetch('/api/config');
+    const j = await r.json();
+    const s = document.getElementById('api-key-status');
+    s.textContent = j.api_key_configured ? `設定済み: ${j.api_key_masked}` : '未設定';
+    s.style.color = j.api_key_configured ? 'var(--ok,#4ade80)' : 'var(--err,#ef4444)';
+    document.getElementById('api-key-in').value = '';
+  } catch (e) {
+    document.getElementById('api-key-status').textContent = '取得失敗: ' + e.message;
+  }
+}
+async function saveApiKey() {
+  const key = document.getElementById('api-key-in').value.trim();
+  if (!key) { alert('APIキーを入力してください'); return; }
+  const s = document.getElementById('api-key-status');
+  s.textContent = '保存中...';
+  try {
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({api_key: key}),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || '保存失敗');
+    s.textContent = `保存完了: ${j.api_key_masked}`;
+    s.style.color = 'var(--ok,#4ade80)';
+    document.getElementById('api-key-in').value = '';
+    setTimeout(() => closeModal('settings-modal'), 900);
+    if (typeof checkHealth === 'function') checkHealth();
+  } catch (e) {
+    s.textContent = 'エラー: ' + e.message;
+    s.style.color = 'var(--err,#ef4444)';
+  }
+}
+
+// ── ドラッグ＆ドロップ ファイル読み込み ───────────────────────
+(function() {
+  const zone = document.getElementById('drop-zone');
+  const input = document.getElementById('file-input');
+  const list = document.getElementById('file-list');
+  const loadedFiles = [];
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+  input.addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(files) {
+    Array.from(files).forEach(f => {
+      const ext = f.name.split('.').pop().toLowerCase();
+      if (!['txt','csv','tsv','json','md','pdf'].includes(ext)) return;
+      if (ext === 'pdf') { readPdf(f); return; }
+      const reader = new FileReader();
+      reader.onload = ev => addFile(f.name, ev.target.result);
+      reader.readAsText(f);
+    });
+  }
+
+  function readPdf(f) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const bytes = new Uint8Array(ev.target.result);
+      let text = '';
+      const str = new TextDecoder('utf-8', {fatal: false}).decode(bytes);
+      const matches = str.match(/\(([^)]{2,})\)/g);
+      if (matches) text = matches.map(m => m.slice(1,-1)).join(' ');
+      if (text.length < 50) text = '[PDF] ' + f.name + ' — テキスト抽出が限定的です。テキスト形式での再アップロードを推奨します。';
+      addFile(f.name, text);
+    };
+    reader.readAsArrayBuffer(f);
+  }
+
+  function addFile(name, content) {
+    loadedFiles.push({name, content});
+    renderFileList();
+    autoFillContext(content);
+  }
+
+  function removeFile(idx) {
+    loadedFiles.splice(idx, 1);
+    renderFileList();
+  }
+
+  function renderFileList() {
+    list.innerHTML = loadedFiles.map((f, i) =>
+      `<div class="file-item"><span class="file-item-name">${f.name}</span><span class="file-item-size">${(f.content.length/1024).toFixed(1)}KB</span><button class="file-item-remove" onclick="window._removeFile(${i})">&times;</button></div>`
+    ).join('');
+  }
+  window._removeFile = removeFile;
+
+  function autoFillContext(text) {
+    const survey = document.getElementById('ctx-survey-in');
+    if (!survey.value.trim()) {
+      survey.value = text.slice(0, 3000);
+    } else {
+      survey.value += '\n\n---\n\n' + text.slice(0, 3000);
+    }
+  }
+})();
+</script>
 </body>
 </html>

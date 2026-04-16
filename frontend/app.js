@@ -15,10 +15,12 @@ const CATS = {
 };
 
 const HINTS = [
-  '新商品のコンセプトとキャッチコピーを作りたい',
-  '売上停滞の原因を調査して改善策を提案してほしい',
-  '競合との差別化戦略を一から考えたい',
-  'ターゲットへの広告プランを組みたい',
+  '新商品のコンセプトをリサーチからコピーまで一気通貫で作りたい',
+  '売上停滞の原因をDIの調査フレームワークで分析して改善策を提案してほしい',
+  'BtoB SaaSの差別化ポジショニングと戦略を設計したい',
+  'ターゲット調査に基づいたSNS×デジタル広告のメディアプランを組みたい',
+  'ECサイトのCVR改善施策を短期・中期・長期で提案してほしい',
+  '30代女性向け新ブランドのペルソナ設計からジャーニーマップまで作りたい',
 ];
 
 // ── アプリ状態 ─────────────────────────────────────────────────
@@ -189,6 +191,7 @@ function renderAgentCards() {
               <span class="acard-name">${a.name}</span>
             </div>
             <div class="acard-desc">${a.desc}</div>
+            ${a.starters && a.starters.length ? `<div class="acard-examples"><div class="acard-examples-label">使い方の例</div>${a.starters.map(s => `<div class="acard-example">${s}</div>`).join('')}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -228,7 +231,23 @@ function openAgent(id) {
   document.getElementById('chat-name').textContent = agent.name;
   document.getElementById('chat-cat').textContent = catLabel(agent.cat);
   document.getElementById('msgs').innerHTML = '';
-  appendAiMsg(`${agent.icon} **${agent.name}** です。\n\n${agent.desc}\n\nどんなことでもご相談ください。`, true);
+  const starterHtml = agent.starters && agent.starters.length
+    ? '\n\n**使い方の例：**\n' + agent.starters.map(s => `- ${s}`).join('\n')
+    : '';
+  appendAiMsg(`${agent.icon} **${agent.name}** です。\n\n${agent.desc}${starterHtml}\n\nどんなことでもご相談ください。`, true);
+  if (agent.starters && agent.starters.length) {
+    const msgsEl = document.getElementById('msgs');
+    const chips = document.createElement('div');
+    chips.className = 'chat-starters';
+    agent.starters.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'chat-starter-chip';
+      btn.textContent = s;
+      btn.onclick = () => { document.getElementById('ci').value = s; chips.remove(); sendMsg(); };
+      chips.appendChild(btn);
+    });
+    msgsEl.appendChild(chips);
+  }
   document.getElementById('ci').focus();
 }
 
