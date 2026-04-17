@@ -1014,6 +1014,7 @@ function handleSSEEvent(event, taskRecord, planBlock, agentOutputs, finalOutput,
 
     case 'complete':
       S.currentTaskId = data.task_id;
+      refreshUsage();
       break;
 
     case 'error':
@@ -1422,6 +1423,98 @@ document.addEventListener('keydown', (e) => {
     if (document.activeElement === ci) sendMsg();
   }
 });
+
+// ── コスト・キャッシュダッシュボード ─────────────────────────
+let _usagePanelOpen = false;
+
+function toggleUsagePanel() {
+  _usagePanelOpen = !_usagePanelOpen;
+  const p = document.getElementById('usage-panel');
+  if (p) p.style.display = _usagePanelOpen ? 'block' : 'none';
+  if (_usagePanelOpen) refreshUsage();
+}
+window.toggleUsagePanel = toggleUsagePanel;
+
+async function refreshUsage() {
+  try {
+    const res = await fetch(`${API_BASE}/api/usage`);
+    if (!res.ok) return;
+    const d = await res.json();
+    renderUsage(d);
+  } catch (e) {
+    console.warn('usage fetch failed:', e.message);
+  }
+}
+
+function renderUsage(d) {
+  const badge = document.getElementById('usage-badge');
+  const totalCostEl = document.getElementById('u-total-cost');
+  const savingsEl   = document.getElementById('u-savings');
+  const rowsEl      = document.getElementById('u-token-rows');
+
+  const cost    = d.total_cost_usd    || 0;
+  const savings = d.total_savings_usd || 0;
+
+  // バッジ更新
+  if (badge) {
+    const savingsText = savings > 0.0001 ? ` · 💾$${savings.toFixed(3)}` : '';
+    badge.textContent = `💰 $${cost.toFixed(3)}${savingsText}`;
+    badge.style.display = '';
+    // 節約がある場合はハイライト
+    badge.style.borderColor = savings > 0.001 ? 'rgba(74,222,128,.5)' : '';
+  }
+
+  // パネル更新
+  if (totalCostEl) totalCostEl.textContent = `$${cost.toFixed(4)}`;
+  if (savingsEl)   savingsEl.textContent   = `$${savings.toFixed(4)}`;
+
+  if (rowsEl) {
+    const rows = [];
+    const models = [
+      { key: 'main', label: 'Sonnet (main)' },
+      { key: 'fast', label: 'Haiku (fast)'  },
+    ];
+    for (const { key, label } of models) {
+      const b = d[key];
+      if (!b || b.calls === 0) continue;
+      rows.push(`
+        <div style="padding:6px 8px;background:var(--panel);border-radius:4px;">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">${label} · ${b.calls} calls</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;">
+            ${_uRow('input',        b.input_tokens)}
+            ${_uRow('output',       b.output_tokens)}
+            ${_uRow('cache write',  b.cache_create_tokens, 'var(--amber,#f59e0b)')}
+            ${_uRow('cache read',   b.cache_read_tokens,   'var(--green2,#22c55e)')}
+          </div>
+          <div style="margin-top:4px;font-size:10px;font-family:var(--mono);color:var(--muted);">
+            cost: <strong style="color:var(--text);">$${(b.cost_usd||0).toFixed(5)}</strong>
+            &nbsp;saved: <strong style="color:var(--green2,#22c55e);">$${(b.savings_usd||0).toFixed(5)}</strong>
+          </div>
+        </div>
+      `);
+    }
+    rowsEl.innerHTML = rows.join('') || '<div style="font-size:11px;color:var(--muted);font-family:var(--mono);">まだ API 呼び出しはありません</div>';
+  }
+}
+
+function _uRow(label, val, color) {
+  const color_ = color || 'var(--text)';
+  return `
+    <div style="font-size:10px;font-family:var(--mono);color:var(--muted);">${label}</div>
+    <div style="font-size:10px;font-family:var(--mono);color:${color_};text-align:right;">${(val||0).toLocaleString()}</div>
+  `;
+}
+
+async function resetUsage() {
+  try {
+    await fetch(`${API_BASE}/api/usage/reset`, { method: 'POST' });
+    await refreshUsage();
+    showToast('使用量をリセットしました');
+  } catch (e) {
+    console.warn('reset failed:', e.message);
+  }
+}
+window.resetUsage = resetUsage;
 
 // ── 起動 ──────────────────────────────────────────────────────
 init();

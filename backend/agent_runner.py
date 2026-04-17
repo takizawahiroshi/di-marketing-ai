@@ -10,6 +10,7 @@ from .agent_registry import build_agent_sys_prompt, build_agent_sys_prompt_block
 from .knowledge_loader import get_knowledge_text
 from .models import ANTHROPIC_MODEL_MAIN, ANTHROPIC_MODEL_FAST
 from .retry import call_with_retry
+from .usage_tracker import record_usage
 
 _log = logging.getLogger(__name__)
 
@@ -47,14 +48,15 @@ async def run_agent_stream(
             final = await stream.get_final_message()
             u = getattr(final, "usage", None)
             if u is not None:
+                cr  = getattr(u, "cache_read_input_tokens", 0)
+                cc  = getattr(u, "cache_creation_input_tokens", 0)
+                inp = getattr(u, "input_tokens", 0)
+                out = getattr(u, "output_tokens", 0)
                 _log.info(
                     "agent=%s cache_read=%s cache_create=%s input=%s output=%s",
-                    agent_id,
-                    getattr(u, "cache_read_input_tokens", 0),
-                    getattr(u, "cache_creation_input_tokens", 0),
-                    getattr(u, "input_tokens", 0),
-                    getattr(u, "output_tokens", 0),
+                    agent_id, cr, cc, inp, out,
                 )
+                await record_usage("main", inp, out, cc, cr)
         except Exception as e:
             _log.debug("usage fetch skipped: %r", e)
 
@@ -103,6 +105,21 @@ async def run_synthesis_stream(
     ) as stream:
         async for text in stream.text_stream:
             yield text
+        try:
+            final = await stream.get_final_message()
+            u = getattr(final, "usage", None)
+            if u is not None:
+                cr  = getattr(u, "cache_read_input_tokens", 0)
+                cc  = getattr(u, "cache_creation_input_tokens", 0)
+                inp = getattr(u, "input_tokens", 0)
+                out = getattr(u, "output_tokens", 0)
+                _log.info(
+                    "synth cache_read=%s cache_create=%s input=%s output=%s",
+                    cr, cc, inp, out,
+                )
+                await record_usage("main", inp, out, cc, cr)
+        except Exception as e:
+            _log.debug("synth usage fetch skipped: %r", e)
 
 
 async def compress_context(
@@ -144,6 +161,15 @@ async def compress_context(
             timeout=10.0,
         )
         compressed = response.content[0].text.strip()
+        u = getattr(response, "usage", None)
+        if u is not None:
+            await record_usage(
+                "fast",
+                getattr(u, "input_tokens", 0),
+                getattr(u, "output_tokens", 0),
+                getattr(u, "cache_creation_input_tokens", 0),
+                getattr(u, "cache_read_input_tokens", 0),
+            )
         return compressed or output[:150]
     except Exception as e:
         _log.warning("compress_context fallback agent_id=%s: %r", agent_id, e)

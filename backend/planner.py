@@ -9,6 +9,7 @@ import anthropic
 from .agent_registry import build_agent_list_text, VALID_IDS, AGENT_REGISTRY
 from .models import ANTHROPIC_MODEL_MAIN
 from .retry import call_with_retry
+from .usage_tracker import record_usage
 
 _log = logging.getLogger(__name__)
 
@@ -87,6 +88,15 @@ async def plan_task(
             label="planner",
         )
         text = response.content[0].text.strip()
+        u = getattr(response, "usage", None)
+        if u is not None:
+            await record_usage(
+                "main",
+                getattr(u, "input_tokens", 0),
+                getattr(u, "output_tokens", 0),
+                getattr(u, "cache_creation_input_tokens", 0),
+                getattr(u, "cache_read_input_tokens", 0),
+            )
         return _parse_plan(text)
     except Exception as e:
         _log.exception("plan_task failed")

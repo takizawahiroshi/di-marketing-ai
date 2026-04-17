@@ -18,6 +18,7 @@ from .memory_store import get_results, get_patterns, get_result_detail
 from .models import ANTHROPIC_MODEL_MAIN
 from .experiment_loop import run_experiment, judge_variants
 from .retry import call_with_retry
+from .usage_tracker import get_usage_stats, reset_usage_stats
 import anthropic as _anthropic
 import json
 import logging
@@ -264,6 +265,20 @@ async def experiment(request: Request):
     if use_judge:
         payload["judge"] = await judge_variants(goal, records)
     return payload
+
+
+# ── 使用量・コストダッシュボード ─────────────────────────────
+@app.get("/api/usage")
+async def get_usage():
+    """プロセス起動からの累計トークン使用量とコスト/節約額を返す。"""
+    return await get_usage_stats()
+
+
+@app.post("/api/usage/reset")
+async def reset_usage():
+    """使用量カウンターをリセットする。"""
+    await reset_usage_stats()
+    return {"ok": True}
 
 
 # ── フロントエンド配信 ────────────────────────────────────────
