@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .pipeline import run_pipeline, sse_event
@@ -19,6 +19,7 @@ from .models import ANTHROPIC_MODEL_MAIN
 from .experiment_loop import run_experiment, judge_variants
 from .retry import call_with_retry
 from .usage_tracker import get_usage_stats, reset_usage_stats
+from .exporter import export_to_docx, export_to_pptx, export_to_pdf
 import anthropic as _anthropic
 import json
 import logging
@@ -279,6 +280,40 @@ async def reset_usage():
     """使用量カウンターをリセットする。"""
     await reset_usage_stats()
     return {"ok": True}
+
+
+# ── リッチ export ─────────────────────────────────────────────
+_EXPORT_MIME = {
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "pdf":  "application/pdf",
+}
+
+@app.post("/api/export/{fmt}")
+async def export_output(fmt: str, request: Request):
+    """統合アウトプットを DOCX / PPTX / PDF でエクスポートする。"""
+    if fmt not in _EXPORT_MIME:
+        raise HTTPException(status_code=400, detail=f"未対応フォーマット: {fmt}。docx / pptx / pdf から選んでください")
+
+    body = await request.json()
+
+    try:
+        if fmt == "docx":
+            data = export_to_docx(body)
+        elif fmt == "pptx":
+            data = export_to_pptx(body)
+        else:
+            data = export_to_pdf(body)
+    except Exception as e:
+        _log.exception("export failed fmt=%s", fmt)
+        raise HTTPException(status_code=500, detail=f"export 生成エラー: {e!r}")
+
+    mime = _EXPORT_MIME[fmt]
+    return Response(
+        content=data,
+        media_type=mime,
+        headers={"Content-Disposition": f"attachment; filename=di-output.{fmt}"},
+    )
 
 
 # ── フロントエンド配信 ────────────────────────────────────────

@@ -927,7 +927,15 @@ async function _executeOrchestrator(goal, forcedAgents = null) {
     <div class="fo-header">
       <span class="fo-label">📋 統合アウトプット</span>
       <button type="button" class="copy-btn" onclick="copySynthesis(this)">📋 コピー</button>
-      <button class="export-btn" onclick="exportMarkdown()">↓ export</button>
+      <div class="export-wrap">
+        <button class="export-btn" onclick="toggleExportMenu(this)">↓ export ▾</button>
+        <div class="export-menu" style="display:none;">
+          <button onclick="exportMarkdown()">📄 Markdown</button>
+          <button onclick="exportRich('docx')">📝 DOCX</button>
+          <button onclick="exportRich('pptx')">📊 PPTX</button>
+          <button onclick="exportRich('pdf')">📑 PDF</button>
+        </div>
+      </div>
     </div>
     <div class="fo-body" id="fo-body"></div>`;
   execContent.appendChild(finalOutput);
@@ -1076,6 +1084,9 @@ function handleSSEEvent(event, taskRecord, planBlock, agentOutputs, finalOutput,
       if (ps) { ps.classList.remove('running'); ps.classList.add('done'); }
       const status = document.getElementById(`aos-${data.id}`);
       if (status) { status.className = 'ao-status done'; status.textContent = '✓ 完了'; }
+      // export 用にエージェント出力を保持
+      if (!taskRecord.results) taskRecord.results = [];
+      taskRecord.results.push({ agent_id: data.id, output: agentTextMap[data.id] || '' });
       break;
     }
 
@@ -1383,7 +1394,15 @@ function renderRestoredTask(rec) {
       <div class="fo-header">
         <span class="fo-label">📋 統合アウトプット（履歴）</span>
         <button type="button" class="copy-btn" onclick="copySynthesis(this)">📋 コピー</button>
-        <button class="export-btn" onclick="exportMarkdown()">↓ export</button>
+        <div class="export-wrap">
+        <button class="export-btn" onclick="toggleExportMenu(this)">↓ export ▾</button>
+        <div class="export-menu" style="display:none;">
+          <button onclick="exportMarkdown()">📄 Markdown</button>
+          <button onclick="exportRich('docx')">📝 DOCX</button>
+          <button onclick="exportRich('pptx')">📊 PPTX</button>
+          <button onclick="exportRich('pdf')">📑 PDF</button>
+        </div>
+      </div>
       </div>
       <div class="fo-body" id="fo-body"></div>`;
     execContent.appendChild(finalOutput);
@@ -1401,19 +1420,56 @@ function renderRestoredTask(rec) {
 }
 
 // ── エクスポート ──────────────────────────────────────────────
-function exportMarkdown() {
+let _exportMenuOpen = false;
+
+function toggleExportMenu(btn) {
+  _exportMenuOpen = !_exportMenuOpen;
+  const menu = btn?.parentElement?.querySelector('.export-menu');
+  if (menu) menu.style.display = _exportMenuOpen ? 'block' : 'none';
+  if (_exportMenuOpen) {
+    // 他のクリックで閉じる
+    const close = (e) => {
+      if (!menu?.contains(e.target) && e.target !== btn) {
+        menu.style.display = 'none';
+        _exportMenuOpen = false;
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+window.toggleExportMenu = toggleExportMenu;
+
+function _buildExportPayload() {
   const task = S.tasks[0];
-  if (!task) return;
-  const md = [
-    `# ${task.goal}`,
+  if (!task) return null;
+  // agentNames マップを S.agents から生成
+  const agentNames = {};
+  (S.agents || []).forEach(a => { agentNames[a.id] = a.name || a.id; });
+  return {
+    goal: task.goal || '',
+    agents: task.agents || [],
+    agent_names: agentNames,
+    results: task.results || [],
+    synthesis: task.synthesis || '',
+  };
+}
+
+function exportMarkdown() {
+  const payload = _buildExportPayload();
+  if (!payload) { showToast('エクスポートするタスクがありません'); return; }
+  const parts = [
+    `# ${payload.goal}`,
     '',
-    `エージェント: ${task.agents.join(' → ')}`,
+    `エージェント: ${payload.agents.map(id => payload.agent_names[id] || id).join(' → ')}`,
     '',
-    '## 統合アウトプット',
-    '',
-    task.synthesis || '(なし)',
-  ].join('\n');
-  const blob = new Blob([md], { type: 'text/markdown' });
+  ];
+  for (const r of (payload.results || [])) {
+    const name = payload.agent_names[r.agent_id] || r.agent_id;
+    parts.push(`## ${name}`, '', r.output || '', '');
+  }
+  parts.push('## 統合アウトプット', '', payload.synthesis || '(なし)');
+  const blob = new Blob([parts.join('\n')], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1422,6 +1478,35 @@ function exportMarkdown() {
   URL.revokeObjectURL(url);
 }
 window.exportMarkdown = exportMarkdown;
+
+async function exportRich(format) {
+  const payload = _buildExportPayload();
+  if (!payload) { showToast('エクスポートするタスクがありません'); return; }
+  showToast(`${format.toUpperCase()} を生成中...`);
+  try {
+    const res = await fetch(`${API_BASE}/api/export/${format}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `di-output-${Date.now()}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${format.toUpperCase()} をダウンロードしました`);
+  } catch (e) {
+    console.error('export failed', e);
+    showToast(`export 失敗: ${e.message}`);
+  }
+}
+window.exportRich = exportRich;
 
 // ── ユーティリティ ────────────────────────────────────────────
 function showToast(msg) {

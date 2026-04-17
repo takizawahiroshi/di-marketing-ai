@@ -325,8 +325,12 @@ body{display:flex;flex-direction:column;height:100vh;margin:0;overflow:hidden;fo
 .btn-s:hover{color:var(--text);}
 
 /* EXPORT */
-.export-btn{font-size:11px;padding:4px 12px;background:transparent;border:1px solid var(--border2);color:var(--muted);cursor:pointer;font-family:var(--mono);border-radius:3px;margin-left:auto;}
+.export-wrap{position:relative;margin-left:auto;}
+.export-btn{font-size:11px;padding:4px 12px;background:transparent;border:1px solid var(--border2);color:var(--muted);cursor:pointer;font-family:var(--mono);border-radius:3px;}
 .export-btn:hover{border-color:var(--blue2);color:var(--blue);}
+.export-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border2);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:200;min-width:130px;overflow:hidden;}
+.export-menu button{display:block;width:100%;padding:8px 14px;background:transparent;border:none;text-align:left;font-size:12px;font-family:var(--mono);color:var(--text);cursor:pointer;white-space:nowrap;}
+.export-menu button:hover{background:var(--panel);color:var(--blue);}
 
 /* MARKDOWN RENDERING */
 .ao-body h1,.ao-body h2,.ao-body h3,.fo-body h1,.fo-body h2,.fo-body h3{font-weight:700;margin:12px 0 6px;line-height:1.3;}
