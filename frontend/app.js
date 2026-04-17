@@ -139,6 +139,50 @@ const HINTS = TEMPLATES.filter(t => [
   'r1','s1','s2','c1','m1','s4'
 ].includes(t.id)).map(t => t.text);
 
+// ── 認証状態 ─────────────────────────────────────────────────
+const Auth = {
+  token: null,
+  user:  null,  // { id, email, name, role }
+};
+
+/** Bearer トークン付き fetch ラッパー。401 でログイン画面に戻す。 */
+async function authFetch(url, opts = {}) {
+  if (Auth.token) {
+    opts.headers = { ...(opts.headers || {}), 'Authorization': `Bearer ${Auth.token}` };
+  }
+  const res = await fetch(url, opts);
+  if (res.status === 401) {
+    _doLogout();
+    throw new Error('認証が必要です。再ログインしてください。');
+  }
+  return res;
+}
+
+function _saveAuth(token, user) {
+  Auth.token = token;
+  Auth.user  = user;
+  try {
+    localStorage.setItem('di_token', token);
+    localStorage.setItem('di_user',  JSON.stringify(user));
+  } catch {}
+}
+
+function _loadAuth() {
+  try {
+    const t = localStorage.getItem('di_token');
+    const u = localStorage.getItem('di_user');
+    if (t && u) { Auth.token = t; Auth.user = JSON.parse(u); return true; }
+  } catch {}
+  return false;
+}
+
+function _doLogout() {
+  Auth.token = null;
+  Auth.user  = null;
+  try { localStorage.removeItem('di_token'); localStorage.removeItem('di_user'); } catch {}
+  _showAuthOverlay();
+}
+
 // ── アプリ状態 ─────────────────────────────────────────────────
 const S = {
   mode: 'orch',
@@ -156,14 +200,184 @@ const S = {
 
 // ── 起動処理 ──────────────────────────────────────────────────
 async function init() {
+  // 認証チェックを最初に実行
+  await _authInit();
+}
+
+async function _authInit() {
+  // 既存トークンを復元
+  _loadAuth();
+
+  // セットアップ状況を確認
+  let setupRequired = false;
+  try {
+    const r = await fetch(`${API_BASE}/api/auth/status`);
+    const d = await r.json();
+    setupRequired = !!d.setup_required;
+  } catch {}
+
+  if (setupRequired) {
+    _showSetupCard();
+    return;
+  }
+
+  if (!Auth.token) {
+    _showLoginCard();
+    return;
+  }
+
+  // トークン有効性をサーバーで確認
+  try {
+    const r = await authFetch(`${API_BASE}/api/auth/me`);
+    if (!r.ok) { _showLoginCard(); return; }
+    Auth.user = await r.json();
+    _saveAuth(Auth.token, Auth.user);
+  } catch {
+    _showLoginCard();
+    return;
+  }
+
+  _hideAuthOverlay();
+  _afterLogin();
+}
+
+function _showAuthOverlay() {
+  const el = document.getElementById('auth-overlay');
+  if (el) el.style.display = 'flex';
+}
+function _hideAuthOverlay() {
+  const el = document.getElementById('auth-overlay');
+  if (el) el.style.display = 'none';
+}
+function _showLoginCard() {
+  _showAuthOverlay();
+  document.getElementById('login-card').style.display = 'block';
+  document.getElementById('setup-card').style.display = 'none';
+  setTimeout(() => document.getElementById('login-email')?.focus(), 100);
+}
+function _showSetupCard() {
+  _showAuthOverlay();
+  document.getElementById('login-card').style.display = 'none';
+  document.getElementById('setup-card').style.display = 'block';
+  setTimeout(() => document.getElementById('setup-email')?.focus(), 100);
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+  if (!email || !pass) { _showErr(errEl, 'メールとパスワードを入力してください'); return; }
+  try {
+    const r = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass }),
+    });
+    const d = await r.json();
+    if (!r.ok) { _showErr(errEl, d.detail || 'ログインに失敗しました'); return; }
+    _saveAuth(d.token, d.user);
+    _hideAuthOverlay();
+    _afterLogin();
+  } catch (e) {
+    _showErr(errEl, 'サーバーに接続できません');
+  }
+}
+window.doLogin = doLogin;
+
+async function doSetup() {
+  const email = document.getElementById('setup-email').value.trim();
+  const name  = document.getElementById('setup-name').value.trim();
+  const pass  = document.getElementById('setup-password').value;
+  const errEl = document.getElementById('setup-err');
+  errEl.style.display = 'none';
+  if (!email || !pass) { _showErr(errEl, 'メールとパスワードを入力してください'); return; }
+  if (pass.length < 8) { _showErr(errEl, 'パスワードは8文字以上にしてください'); return; }
+  try {
+    const r = await fetch(`${API_BASE}/api/auth/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name, password: pass }),
+    });
+    const d = await r.json();
+    if (!r.ok) { _showErr(errEl, d.detail || 'セットアップに失敗しました'); return; }
+    _saveAuth(d.token, d.user);
+    _hideAuthOverlay();
+    _afterLogin();
+  } catch (e) {
+    _showErr(errEl, 'サーバーに接続できません');
+  }
+}
+window.doSetup = doSetup;
+
+function _showErr(el, msg) {
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function _afterLogin() {
+  _renderUserBadge();
   loadCtxFromStorage();
   renderHintChips();
   renderStarterCards();
-  await loadAgents();
+  loadAgents();
   loadPersonaPresets();
   loadTaskHistoryFromServer();
   checkHealth();
 }
+
+function _renderUserBadge() {
+  const u = Auth.user;
+  if (!u) return;
+  const badge = document.getElementById('user-badge');
+  const avatar = document.getElementById('user-avatar');
+  const nameEl = document.getElementById('user-name-hdr');
+  const infoEl = document.getElementById('user-menu-info');
+  const mgmtBtn = document.getElementById('user-mgmt-btn');
+  if (badge)   badge.style.display = '';
+  if (avatar)  avatar.textContent = (u.name || u.email)[0].toUpperCase();
+  if (nameEl)  nameEl.textContent = u.name || u.email.split('@')[0];
+  if (infoEl)  infoEl.innerHTML = `
+    <div style="font-weight:700;">${escapeHtml(u.name || '')}</div>
+    <div style="font-size:10px;color:var(--muted);">${escapeHtml(u.email)}</div>
+    <div class="role-badge role-${u.role}">${u.role}</div>
+  `;
+  if (mgmtBtn) mgmtBtn.style.display = (u.role === 'owner' || u.role === 'admin') ? '' : 'none';
+}
+
+let _userMenuOpen = false;
+function toggleUserMenu() {
+  _userMenuOpen = !_userMenuOpen;
+  const m = document.getElementById('user-menu');
+  if (m) m.style.display = _userMenuOpen ? 'block' : 'none';
+  if (_userMenuOpen) {
+    const close = (e) => {
+      const badge = document.getElementById('user-badge');
+      if (!badge?.contains(e.target)) {
+        m.style.display = 'none';
+        _userMenuOpen = false;
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+window.toggleUserMenu = toggleUserMenu;
+
+function authLogout() {
+  _doLogout();
+  showToast('ログアウトしました');
+}
+window.authLogout = authLogout;
+
+// Enter キーでログイン
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const lc = document.getElementById('login-card');
+  const sc = document.getElementById('setup-card');
+  if (lc && lc.style.display !== 'none') doLogin();
+  else if (sc && sc.style.display !== 'none') doSetup();
+});
 
 // ── ペルソナプリセット ────────────────────────────────────────
 async function loadPersonaPresets() {
@@ -548,7 +762,7 @@ async function sendMsg() {
   let accumulated = ''; // 累積テキスト（renderMarkdown の都度描画用）
 
   try {
-    const res = await fetch(`${API_BASE}/api/agents/${S.agent.id}/chat`, {
+    const res = await authFetch(`${API_BASE}/api/agents/${S.agent.id}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: S.agentMsgs, context: S.ctx }),
@@ -779,7 +993,7 @@ async function runExperiment() {
     </div>`;
 
   try {
-    const res = await fetch(`${API_BASE}/api/experiment`, {
+    const res = await authFetch(`${API_BASE}/api/experiment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ goal, contexts, concurrency, judge }),
@@ -970,7 +1184,7 @@ async function _executeOrchestrator(goal, forcedAgents = null) {
 async function _streamPipeline(goal, taskRecord, planBlock, agentOutputs, finalOutput, forcedAgents = null) {
   const body = { goal, context: S.ctx };
   if (Array.isArray(forcedAgents) && forcedAgents.length) body.forced_agents = forcedAgents;
-  const res = await fetch(`${API_BASE}/api/run`, {
+  const res = await authFetch(`${API_BASE}/api/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -1268,7 +1482,7 @@ function renderTaskHistory() {
 // サーバー側の永続履歴から初期表示
 async function loadTaskHistoryFromServer() {
   try {
-    const res = await fetch(`${API_BASE}/api/memory/results`);
+    const res = await authFetch(`${API_BASE}/api/memory/results`);
     if (!res.ok) return;
     const data = await res.json();
     const records = data.results || [];
@@ -1291,7 +1505,7 @@ async function loadTaskHistoryFromServer() {
 async function replayTask(taskId) {
   if (S.running) { showToast('実行中は履歴を開けません'); return; }
   try {
-    const res = await fetch(`${API_BASE}/api/memory/results/${encodeURIComponent(taskId)}`);
+    const res = await authFetch(`${API_BASE}/api/memory/results/${encodeURIComponent(taskId)}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       showToast(`履歴の取得に失敗: ${err.detail || res.status}`);
@@ -1484,7 +1698,7 @@ async function exportRich(format) {
   if (!payload) { showToast('エクスポートするタスクがありません'); return; }
   showToast(`${format.toUpperCase()} を生成中...`);
   try {
-    const res = await fetch(`${API_BASE}/api/export/${format}`, {
+    const res = await authFetch(`${API_BASE}/api/export/${format}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -1625,6 +1839,95 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// ── ユーザー管理 ──────────────────────────────────────────────
+const ROLE_LABELS = { owner:'オーナー', admin:'管理者', member:'メンバー', viewer:'閲覧者' };
+
+async function openUserMgmt() {
+  _userMenuOpen = false;
+  const m = document.getElementById('user-menu');
+  if (m) m.style.display = 'none';
+  openModal('user-mgmt-modal');
+  await refreshUserList();
+}
+window.openUserMgmt = openUserMgmt;
+
+async function refreshUserList() {
+  const el = document.getElementById('user-list');
+  if (!el) return;
+  try {
+    const r = await authFetch(`${API_BASE}/api/auth/users`);
+    if (!r.ok) { el.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:12px;">取得失敗</div>'; return; }
+    const d = await r.json();
+    const me = Auth.user;
+    el.innerHTML = (d.users || []).map(u => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--border);">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${escapeHtml((u.name||u.email)[0].toUpperCase())}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${escapeHtml(u.name||'')}</div>
+          <div style="font-size:11px;color:var(--muted);">${escapeHtml(u.email)}</div>
+        </div>
+        <span class="role-badge role-${u.role}">${ROLE_LABELS[u.role]||u.role}</span>
+        ${me?.role === 'owner' && u.id !== me?.id ? `
+          <select onchange="changeRole('${u.id}', this.value)" style="font-size:11px;font-family:var(--mono);padding:3px 6px;border:1px solid var(--border2);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">
+            ${['owner','admin','member','viewer'].map(r => `<option value="${r}" ${r===u.role?'selected':''}>${r}</option>`).join('')}
+          </select>
+          <button onclick="deleteUser('${u.id}')" style="background:transparent;border:1px solid var(--border2);color:var(--muted);padding:3px 8px;font-size:11px;cursor:pointer;border-radius:4px;" title="削除">✕</button>
+        ` : ''}
+      </div>
+    `).join('') || '<div style="padding:16px;color:var(--muted);font-size:12px;">ユーザーがいません</div>';
+  } catch (e) {
+    el.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:12px;">エラー: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function changeRole(userId, newRole) {
+  try {
+    const r = await authFetch(`${API_BASE}/api/auth/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: newRole }),
+    });
+    if (!r.ok) { const d = await r.json(); showToast(d.detail||'更新失敗'); }
+    else { showToast('ロールを更新しました'); await refreshUserList(); }
+  } catch (e) { showToast('エラー: ' + e.message); }
+}
+window.changeRole = changeRole;
+
+async function deleteUser(userId) {
+  if (!confirm('このユーザーを削除しますか？')) return;
+  try {
+    const r = await authFetch(`${API_BASE}/api/auth/users/${userId}`, { method: 'DELETE' });
+    if (!r.ok) { const d = await r.json(); showToast(d.detail||'削除失敗'); }
+    else { showToast('ユーザーを削除しました'); await refreshUserList(); }
+  } catch (e) { showToast('エラー: ' + e.message); }
+}
+window.deleteUser = deleteUser;
+
+async function createUser() {
+  const email = document.getElementById('nu-email').value.trim();
+  const name  = document.getElementById('nu-name').value.trim();
+  const pass  = document.getElementById('nu-password').value;
+  const role  = document.getElementById('nu-role').value;
+  const errEl = document.getElementById('nu-err');
+  errEl.style.display = 'none';
+  if (!email || !pass) { errEl.textContent = 'メールとパスワードは必須です'; errEl.style.display = 'block'; return; }
+  try {
+    const r = await authFetch(`${API_BASE}/api/auth/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name, password: pass, role }),
+    });
+    const d = await r.json();
+    if (!r.ok) { errEl.textContent = d.detail||'作成失敗'; errEl.style.display = 'block'; return; }
+    document.getElementById('nu-email').value = '';
+    document.getElementById('nu-name').value = '';
+    document.getElementById('nu-password').value = '';
+    showToast(`${email} を追加しました`);
+    await refreshUserList();
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+}
+window.createUser = createUser;
+
 // ── テンプレートライブラリ UI ─────────────────────────────────
 const _TMPL_STORAGE_KEY = 'di_user_templates';
 let _tmplTab = 'all';
@@ -1762,7 +2065,7 @@ window.toggleUsagePanel = toggleUsagePanel;
 
 async function refreshUsage() {
   try {
-    const res = await fetch(`${API_BASE}/api/usage`);
+    const res = await authFetch(`${API_BASE}/api/usage`);
     if (!res.ok) return;
     const d = await res.json();
     renderUsage(d);
@@ -1832,7 +2135,7 @@ function _uRow(label, val, color) {
 
 async function resetUsage() {
   try {
-    await fetch(`${API_BASE}/api/usage/reset`, { method: 'POST' });
+    await authFetch(`${API_BASE}/api/usage/reset`, { method: 'POST' });
     await refreshUsage();
     showToast('使用量をリセットしました');
   } catch (e) {

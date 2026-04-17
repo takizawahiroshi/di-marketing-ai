@@ -45,6 +45,19 @@
   <button class="hdr-btn theme-toggle" onclick="toggleTheme()" title="テーマ切替" aria-label="テーマ切替"></button>
   <button class="hdr-btn" onclick="openModal('ctx-modal')">＋ データ登録</button>
   <button class="hdr-btn" onclick="openSettings()" title="API設定" style="margin-left:6px;">⚙ 設定</button>
+  <!-- ユーザーバッジ（ログイン後に表示） -->
+  <div id="user-badge" style="display:none;position:relative;">
+    <button class="hdr-btn user-badge-btn" onclick="toggleUserMenu()" title="アカウント">
+      <span id="user-avatar" class="user-avatar">U</span>
+      <span id="user-name-hdr" style="font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    </button>
+    <div id="user-menu" class="user-menu" style="display:none;">
+      <div id="user-menu-info" class="user-menu-info"></div>
+      <hr style="margin:4px 0;border:none;border-top:1px solid var(--border);">
+      <button onclick="openUserMgmt()" id="user-mgmt-btn" style="display:none;">👥 ユーザー管理</button>
+      <button onclick="authLogout()">ログアウト</button>
+    </div>
+  </div>
   <button id="menu-btn" onclick="toggleMenu()" style="display:none;padding:4px 10px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:14px;cursor:pointer;">☰</button>
 </div>
 
@@ -309,6 +322,84 @@
   </div>
 </div>
 
+<!-- AUTH OVERLAY (ログイン / 初回セットアップ) -->
+<div id="auth-overlay" style="display:none;position:fixed;inset:0;background:var(--blue);z-index:2000;align-items:center;justify-content:center;flex-direction:column;gap:0;">
+  <div style="margin-bottom:28px;text-align:center;">
+    <div style="display:inline-flex;align-items:center;gap:10px;">
+      <div style="width:36px;height:36px;background:var(--gold,#E8B84B);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0A0A0E;font-family:var(--mono);clip-path:polygon(0 0,100% 0,100% 80%,80% 100%,0 100%);">DI</div>
+      <span style="font-family:var(--mono);font-size:15px;color:#fff;font-weight:700;letter-spacing:.08em;">MARKETING AI</span>
+    </div>
+  </div>
+
+  <!-- ログインフォーム -->
+  <div id="login-card" class="auth-card" style="display:none;">
+    <div class="auth-title">ログイン</div>
+    <div class="auth-field">
+      <label>メールアドレス</label>
+      <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>パスワード</label>
+      <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div id="login-err" class="auth-err" style="display:none;"></div>
+    <button class="auth-submit" onclick="doLogin()">ログイン</button>
+  </div>
+
+  <!-- 初回セットアップフォーム -->
+  <div id="setup-card" class="auth-card" style="display:none;">
+    <div class="auth-title">初回セットアップ</div>
+    <p style="font-size:12px;color:rgba(255,255,255,.6);margin:0 0 16px;line-height:1.6;">最初の Owner アカウントを作成します。</p>
+    <div class="auth-field">
+      <label>メールアドレス</label>
+      <input id="setup-email" type="email" placeholder="you@company.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>表示名（省略可）</label>
+      <input id="setup-name" type="text" placeholder="山田 太郎">
+    </div>
+    <div class="auth-field">
+      <label>パスワード（8文字以上）</label>
+      <input id="setup-password" type="password" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <div id="setup-err" class="auth-err" style="display:none;"></div>
+    <button class="auth-submit" onclick="doSetup()">アカウントを作成してはじめる</button>
+  </div>
+</div>
+
+<!-- ユーザー管理モーダル -->
+<div class="overlay" id="user-mgmt-modal">
+  <div class="modal" style="width:min(640px,95vw);">
+    <div class="modal-head">
+      <span class="modal-title">USER MANAGEMENT</span>
+      <button class="modal-close" onclick="closeModal('user-mgmt-modal')">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <!-- ユーザー一覧 -->
+      <div id="user-list" style="max-height:320px;overflow-y:auto;"></div>
+      <!-- 新規ユーザー追加 -->
+      <div style="padding:14px 20px;border-top:1px solid var(--border);background:var(--panel);">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);font-family:var(--mono);letter-spacing:.06em;margin-bottom:10px;">NEW USER</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <input id="nu-email" type="email" placeholder="メールアドレス" class="m-ta" style="height:36px;font-size:12px;">
+          <input id="nu-name" type="text" placeholder="表示名" class="m-ta" style="height:36px;font-size:12px;">
+          <input id="nu-password" type="password" placeholder="パスワード（8文字以上）" class="m-ta" style="height:36px;font-size:12px;">
+          <select id="nu-role" class="m-ta" style="height:36px;font-size:12px;">
+            <option value="member">member — パイプライン実行</option>
+            <option value="admin">admin — 設定閲覧可</option>
+            <option value="viewer">viewer — 閲覧のみ</option>
+          </select>
+        </div>
+        <div id="nu-err" style="display:none;font-size:11px;color:var(--red,#ef4444);margin-bottom:6px;"></div>
+        <button class="btn-p" onclick="createUser()" style="width:100%;">ユーザーを追加</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-s" onclick="closeModal('user-mgmt-modal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <!-- TEMPLATE LIBRARY MODAL -->
 <div id="tmpl-modal" class="overlay" style="display:none;align-items:flex-start;padding-top:60px;">
   <div class="modal" style="width:min(860px,95vw);max-height:80vh;display:flex;flex-direction:column;">
@@ -391,7 +482,7 @@
 async function openSettings() {
   openModal('settings-modal');
   try {
-    const r = await fetch('/api/config');
+    const r = await authFetch('/api/config');
     const j = await r.json();
     const s = document.getElementById('api-key-status');
     s.textContent = j.api_key_configured ? `設定済み: ${j.api_key_masked}` : '未設定';
@@ -407,7 +498,7 @@ async function saveApiKey() {
   const s = document.getElementById('api-key-status');
   s.textContent = '保存中...';
   try {
-    const r = await fetch('/api/config', {
+    const r = await authFetch('/api/config', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({api_key: key}),
