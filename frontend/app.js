@@ -14,14 +14,130 @@ const CATS = {
   media:    { color: '#4338CA', light: '#EEF2FF' },
 };
 
-const HINTS = [
-  '新商品のコンセプトをリサーチからコピーまで一気通貫で作りたい',
-  '売上停滞の原因をDIの調査フレームワークで分析して改善策を提案してほしい',
-  'BtoB SaaSの差別化ポジショニングと戦略を設計したい',
-  'ターゲット調査に基づいたSNS×デジタル広告のメディアプランを組みたい',
-  'ECサイトのCVR改善施策を短期・中期・長期で提案してほしい',
-  '30代女性向け新ブランドのペルソナ設計からジャーニーマップまで作りたい',
+// ── テンプレートライブラリ ─────────────────────────────────────
+const TEMPLATE_CATS = [
+  { id: 'all',      label: 'ALL',      color: '#555555' },
+  { id: 'research', label: 'RESEARCH', color: '#0A6E6E' },
+  { id: 'strategy', label: 'STRATEGY', color: '#C8321A' },
+  { id: 'creative', label: 'CREATIVE', color: '#B45309' },
+  { id: 'media',    label: 'MEDIA',    color: '#4338CA' },
+  { id: 'custom',   label: 'MY TEMPLATES', color: '#7C3AED' },
 ];
+
+const TEMPLATES = [
+  // ── RESEARCH ──────────────────────────────────────────────────
+  {
+    id: 'r1', cat: 'research', title: '新商品コンセプトリサーチ',
+    text: '新商品のターゲット像・潜在ニーズ・市場機会をDIのリサーチフレームワークで深掘りし、コンセプト仮説を3〜5案作りたい',
+  },
+  {
+    id: 'r2', cat: 'research', title: '顧客インサイト発掘',
+    text: '既存顧客の購買動機・解約理由・使用状況をペルソナ軸でまとめ、本音ベースのインサイトと改善示唆を抽出したい',
+  },
+  {
+    id: 'r3', cat: 'research', title: '競合ベンチマーク分析',
+    text: '主要競合3〜5社のポジショニング・訴求軸・メディア戦略を比較分析し、自社の差別化機会と優位性を特定したい',
+  },
+  {
+    id: 'r4', cat: 'research', title: 'BtoBバイヤー調査',
+    text: 'BtoBバイヤーの意思決定プロセス・評価基準・情報収集経路を分析し、購買ファネル別の最適アプローチを設計したい',
+  },
+  {
+    id: 'r5', cat: 'research', title: 'ブランドパーセプション診断',
+    text: '自社ブランドに対する消費者認知・感情・連想ワードを把握し、ブランド健全性とポジショニングギャップを診断したい',
+  },
+  {
+    id: 'r6', cat: 'research', title: 'トレンド・マクロ環境分析',
+    text: '業界の直近トレンドとマクロ環境変化（PEST）がマーケティング戦略に与える影響を分析し、機会と脅威を整理したい',
+  },
+
+  // ── STRATEGY ─────────────────────────────────────────────────
+  {
+    id: 's1', cat: 'strategy', title: 'CVR改善診断',
+    text: 'ECサイト/LPのCVRが目標を下回っている。原因仮説を構造的に立て、短期即効施策と中長期の改善ロードマップを設計したい',
+  },
+  {
+    id: 's2', cat: 'strategy', title: '新規事業GTM戦略',
+    text: '新サービスのGo-to-Market戦略を設計したい。ターゲットセグメント・チャネル選定・価格設定・ローンチシーケンスを含む全体プランを作りたい',
+  },
+  {
+    id: 's3', cat: 'strategy', title: 'ブランドポジショニング設計',
+    text: '競合環境を踏まえた差別化ポジションを定め、ブランドプロミス・バリュープロポジション・パーソナリティを言語化したい',
+  },
+  {
+    id: 's4', cat: 'strategy', title: 'カスタマージャーニー設計',
+    text: '購買ステージ別のタッチポイント・感情・行動・課題を整理し、各フェーズで最も効果的な介入施策とKPIを設計したい',
+  },
+  {
+    id: 's5', cat: 'strategy', title: '売上停滞打破戦略',
+    text: '直近数ヶ月で売上が横ばいになっている。主要因の仮説診断を行い、即効性のある施策と中長期戦略を両軸で提案してほしい',
+  },
+  {
+    id: 's6', cat: 'strategy', title: 'LTV最大化戦略',
+    text: '既存顧客のLTV（顧客生涯価値）を向上させるため、リテンション強化・アップセル・クロスセル・紹介施策を体系的に設計したい',
+  },
+  {
+    id: 's7', cat: 'strategy', title: '新カテゴリ参入評価',
+    text: '新カテゴリへの参入を検討中。市場規模・競合環境・自社シナジーを評価し、参入可否の判断基準と参入時の戦略オプションを提言してほしい',
+  },
+
+  // ── CREATIVE ─────────────────────────────────────────────────
+  {
+    id: 'c1', cat: 'creative', title: 'キャッチコピー開発',
+    text: '商品・ブランドのターゲットと強みに基づいたキャッチコピーを10案以上作り、各コピーの訴求意図とターゲット感情を説明してほしい',
+  },
+  {
+    id: 'c2', cat: 'creative', title: 'LP企画・構成設計',
+    text: '新商品のランディングページ構成をリサーチに基づいて設計したい。ファーストビュー〜CTA・各セクションのコピー方針と訴求順序を作りたい',
+  },
+  {
+    id: 'c3', cat: 'creative', title: 'コンテンツマーケティング企画',
+    text: 'ターゲット向けのオウンドメディアコンテンツ企画を30本立案し、SEO・SNS連携の全体戦略と優先度マップを作りたい',
+  },
+  {
+    id: 'c4', cat: 'creative', title: 'ブランドストーリー構築',
+    text: '創業背景・商品哲学・社会的意義をつなぐブランドナラティブを構築し、各媒体（Web/SNS/PR）での展開シナリオを設計したい',
+  },
+  {
+    id: 'c5', cat: 'creative', title: 'SNSクリエイティブ戦略',
+    text: 'ブランド・商品のInstagram/X運用における投稿テーマ軸・トーン&マナー・月次カレンダー・エンゲージメント施策を設計したい',
+  },
+  {
+    id: 'c6', cat: 'creative', title: 'CRM・メールシナリオ設計',
+    text: '新規登録〜リピート購入までのメール/LINEシナリオを設計したい。各ステージのトリガー条件・配信タイミング・コピー方針を含む',
+  },
+
+  // ── MEDIA ────────────────────────────────────────────────────
+  {
+    id: 'm1', cat: 'media', title: 'デジタル広告プラン設計',
+    text: 'KPI達成に向けたSearch/Display/SNS広告の予算配分・ターゲティング戦略・クリエイティブ方針・入札戦略を一括で策定したい',
+  },
+  {
+    id: 'm2', cat: 'media', title: 'SNS×ペイド統合プラン',
+    text: 'オーガニックSNSとペイドメディアを連動させた統合メディアプランを作りたい。KPI・予算・スケジュール・役割分担を含む',
+  },
+  {
+    id: 'm3', cat: 'media', title: '新商品ローンチ統合プラン',
+    text: '発売前・発売当月・発売後3ヶ月の統合コミュニケーションスケジュールとメディアミックス戦略を設計したい',
+  },
+  {
+    id: 'm4', cat: 'media', title: '広告予算最適化診断',
+    text: '現在の広告/メディア予算配分の課題を診断し、ROI最大化に向けた再配分シナリオとA/Bテスト計画を提案してほしい',
+  },
+  {
+    id: 'm5', cat: 'media', title: 'インフルエンサー活用戦略',
+    text: 'ブランド・商品のインフルエンサーマーケティング戦略を策定したい。選定基準・起用形態・KPI設計・契約留意事項を含む',
+  },
+  {
+    id: 'm6', cat: 'media', title: '年間マーケティングカレンダー',
+    text: '来年の販促・イベント・コンテンツ・広告を統合した年間マーケティングカレンダーを作りたい。季節要因と予算配分も含める',
+  },
+];
+
+// HINTS は後方互換（hint-chips + starter-cards 用）
+const HINTS = TEMPLATES.filter(t => [
+  'r1','s1','s2','c1','m1','s4'
+].includes(t.id)).map(t => t.text);
 
 // ── アプリ状態 ─────────────────────────────────────────────────
 const S = {
@@ -1423,6 +1539,130 @@ document.addEventListener('keydown', (e) => {
     if (document.activeElement === ci) sendMsg();
   }
 });
+
+// ── テンプレートライブラリ UI ─────────────────────────────────
+const _TMPL_STORAGE_KEY = 'di_user_templates';
+let _tmplTab = 'all';
+
+function loadUserTemplates() {
+  try {
+    return JSON.parse(localStorage.getItem(_TMPL_STORAGE_KEY) || '[]');
+  } catch { return []; }
+}
+
+function saveUserTemplates(list) {
+  try { localStorage.setItem(_TMPL_STORAGE_KEY, JSON.stringify(list)); } catch {}
+}
+
+function openTemplateModal() {
+  const modal = document.getElementById('tmpl-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  renderTemplateModal(_tmplTab);
+}
+window.openTemplateModal = openTemplateModal;
+
+function closeTemplateModal() {
+  const modal = document.getElementById('tmpl-modal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeTemplateModal = closeTemplateModal;
+
+function switchTmplTab(id) {
+  _tmplTab = id;
+  renderTemplateModal(id);
+}
+window.switchTmplTab = switchTmplTab;
+
+function renderTemplateModal(tabId) {
+  // タブアクティブ状態
+  document.querySelectorAll('.tmpl-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabId);
+  });
+
+  const grid = document.getElementById('tmpl-grid');
+  if (!grid) return;
+
+  const userTmpl = loadUserTemplates();
+  let items;
+
+  if (tabId === 'custom') {
+    items = userTmpl;
+  } else if (tabId === 'all') {
+    items = TEMPLATES;
+  } else {
+    items = TEMPLATES.filter(t => t.cat === tabId);
+  }
+
+  if (items.length === 0) {
+    grid.innerHTML = '<div class="tmpl-empty">テンプレートがありません</div>';
+    return;
+  }
+
+  grid.innerHTML = items.map(t => {
+    const cat = TEMPLATE_CATS.find(c => c.id === (t.cat || 'custom')) || TEMPLATE_CATS[0];
+    const isCustom = !!t.created_at;
+    return `
+      <div class="tmpl-card" onclick="applyTemplate(${JSON.stringify(t.text).replace(/'/g,"&#39;")})">
+        <div class="tmpl-card-head">
+          <span class="tmpl-cat-badge" style="background:${cat.color}18;color:${cat.color};">${cat.label}</span>
+          ${isCustom ? `<button class="tmpl-del-btn" onclick="event.stopPropagation();deleteUserTemplate('${t.id}')" title="削除">×</button>` : ''}
+        </div>
+        <div class="tmpl-title">${escapeHtml(t.title)}</div>
+        <div class="tmpl-preview">${escapeHtml(t.text.slice(0, 70))}${t.text.length > 70 ? '…' : ''}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function applyTemplate(text) {
+  const ti = document.getElementById('task-input');
+  const tib = document.getElementById('task-input-bottom');
+  if (ti) ti.value = text;
+  if (tib) tib.value = text;
+  closeTemplateModal();
+  showToast('テンプレートを適用しました');
+  // ランディングが表示中なら task-input にフォーカス
+  if (ti && document.getElementById('orch-landing')?.style.display !== 'none') {
+    ti.focus();
+  }
+}
+window.applyTemplate = applyTemplate;
+
+function saveCurrentAsTemplate() {
+  const ti = document.getElementById('task-input');
+  const tib = document.getElementById('task-input-bottom');
+  const text = (ti?.value || tib?.value || '').trim();
+  if (!text) { showToast('保存するテキストを入力してください'); return; }
+
+  const titleInput = document.getElementById('tmpl-save-title');
+  const title = (titleInput?.value || '').trim() || text.slice(0, 20) + '…';
+
+  const list = loadUserTemplates();
+  const newItem = {
+    id: 'u_' + Date.now(),
+    cat: 'custom',
+    title,
+    text,
+    created_at: new Date().toISOString(),
+  };
+  list.unshift(newItem);
+  saveUserTemplates(list);
+  if (titleInput) titleInput.value = '';
+  showToast(`「${title}」を保存しました`);
+  // カスタムタブに切り替えて表示
+  _tmplTab = 'custom';
+  renderTemplateModal('custom');
+}
+window.saveCurrentAsTemplate = saveCurrentAsTemplate;
+
+function deleteUserTemplate(id) {
+  const list = loadUserTemplates().filter(t => t.id !== id);
+  saveUserTemplates(list);
+  renderTemplateModal(_tmplTab);
+  showToast('テンプレートを削除しました');
+}
+window.deleteUserTemplate = deleteUserTemplate;
 
 // ── コスト・キャッシュダッシュボード ─────────────────────────
 let _usagePanelOpen = false;

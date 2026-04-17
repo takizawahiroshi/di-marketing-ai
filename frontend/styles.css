@@ -59,6 +59,23 @@
 .usage-badge{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.4);}
 .usage-badge:hover{background:rgba(74,222,128,.25);border-color:rgba(74,222,128,.7);}
 
+/* TEMPLATE LIBRARY */
+.tmpl-open-btn{padding:5px 13px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.35);color:rgba(255,255,255,.8);font-size:11px;font-family:var(--mono);cursor:pointer;border-radius:4px;letter-spacing:.03em;transition:all .15s;}
+.tmpl-open-btn:hover{background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.7);}
+.tmpl-tab{padding:6px 14px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;letter-spacing:.05em;font-weight:600;transition:all .15s;white-space:nowrap;}
+.tmpl-tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+.tmpl-tab:hover:not(.active){color:var(--text);}
+.tmpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding:16px;overflow-y:auto;flex:1;min-height:0;}
+.tmpl-card{padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:6px;}
+.tmpl-card:hover{border-color:var(--blue-lt);box-shadow:0 2px 12px rgba(52,96,251,.1);transform:translateY(-1px);}
+.tmpl-card-head{display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.tmpl-cat-badge{font-size:9px;font-weight:700;font-family:var(--mono);letter-spacing:.06em;padding:2px 7px;border-radius:100px;}
+.tmpl-del-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;border-radius:2px;}
+.tmpl-del-btn:hover{color:var(--red,#ef4444);}
+.tmpl-title{font-size:13px;font-weight:700;color:var(--text);line-height:1.35;}
+.tmpl-preview{font-size:11px;color:var(--muted);line-height:1.55;}
+.tmpl-empty{grid-column:1/-1;padding:40px;text-align:center;color:var(--muted);font-size:13px;font-family:var(--sans);}
+
 /* CORE LAYOUT */
 #hdr{height:52px;background:var(--blue);border-bottom:3px solid var(--blue2);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;position:sticky;top:0;left:0;right:0;z-index:100;width:100%;}
 .hdr-brand{display:flex;align-items:center;gap:8px;flex-shrink:0;}

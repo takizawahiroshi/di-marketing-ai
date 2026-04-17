@@ -164,6 +164,9 @@
               <textarea id="task-input" rows="2" placeholder="例：30代女性向け新商品のコンセプトとキャッチコピーをリサーチから一気に作りたい"></textarea>
               <button id="run-btn" onclick="runOrchestrator()">送信</button>
             </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+              <button class="tmpl-open-btn" onclick="openTemplateModal()">📋 テンプレート</button>
+            </div>
             <div id="hint-chips" class="iz-hints" style="margin-top:10px;"></div>
           </div>
           <div id="starter-cards" class="starter-grid"></div>
@@ -302,6 +305,33 @@
     <div class="modal-foot">
       <button class="btn-s" onclick="closeModal('plan-edit-modal')">cancel</button>
       <button class="btn-p" onclick="rerunWithEditedPlan()">▶ 編集したプランで再実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE LIBRARY MODAL -->
+<div id="tmpl-modal" class="overlay" style="display:none;align-items:flex-start;padding-top:60px;">
+  <div class="modal" style="width:min(860px,95vw);max-height:80vh;display:flex;flex-direction:column;">
+    <div class="modal-head">
+      <span class="modal-title">TEMPLATE LIBRARY</span>
+      <button class="modal-close" onclick="closeTemplateModal()">&times;</button>
+    </div>
+    <!-- タブ -->
+    <div id="tmpl-tabs" style="display:flex;gap:4px;padding:10px 16px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;">
+      <button class="tmpl-tab active" data-tab="all" onclick="switchTmplTab('all')">ALL</button>
+      <button class="tmpl-tab" data-tab="research" onclick="switchTmplTab('research')">RESEARCH</button>
+      <button class="tmpl-tab" data-tab="strategy" onclick="switchTmplTab('strategy')">STRATEGY</button>
+      <button class="tmpl-tab" data-tab="creative" onclick="switchTmplTab('creative')">CREATIVE</button>
+      <button class="tmpl-tab" data-tab="media" onclick="switchTmplTab('media')">MEDIA</button>
+      <button class="tmpl-tab" data-tab="custom" onclick="switchTmplTab('custom')" style="margin-left:auto;color:var(--purple,#7C3AED);">⭐ MY TEMPLATES</button>
+    </div>
+    <!-- カード一覧 -->
+    <div id="tmpl-grid" class="tmpl-grid"></div>
+    <!-- 保存フォーム -->
+    <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--panel);flex-shrink:0;display:flex;gap:8px;align-items:center;">
+      <input id="tmpl-save-title" type="text" placeholder="タイトル（省略可）" style="flex:1;padding:7px 10px;font-size:12px;font-family:var(--sans);border:1px solid var(--border2);border-radius:4px;background:var(--surface);color:var(--text);outline:none;max-width:240px;">
+      <button class="btn-s" onclick="saveCurrentAsTemplate()" style="white-space:nowrap;">＋ 現在の入力を保存</button>
+      <span style="font-size:11px;color:var(--muted);font-family:var(--mono);">task-input の内容を MY TEMPLATES に保存します</span>
     </div>
   </div>
 </div>
